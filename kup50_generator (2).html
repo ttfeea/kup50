@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>KUP 50% — Ewidencja</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --ink:#0d0d0d;
+  --ink2:#555;
+  --ink3:#999;
+  --line:#e4e4e4;
+  --line2:#c8c8c8;
+  --bg:#fafaf8;
+  --white:#fff;
+  --green:#1a7a3c;
+  --green-bg:#f0faf4;
+  --red:#c0392b;
+  --red-bg:#fdf2f2;
+  --blue:#1a50a0;
+  --blue-bg:#f0f4fa;
+  --mono:'Geist Mono',monospace;
+  --serif:'Instrument Serif',serif;
+}
+
+html{font-size:14px}
+body{
+  font-family:var(--mono);
+  background:var(--bg);
+  color:var(--ink);
+  min-height:100vh;
+  padding:3rem 2rem 6rem;
+}
+.wrap{max-width:1100px;margin:0 auto}
+
+/* ── HEADER ── */
+.hdr{margin-bottom:3rem}
+.hdr-eyebrow{
+  font-size:10px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--ink3);margin-bottom:.75rem
+}
+.hdr-title{
+  font-family:var(--serif);font-size:clamp(2rem,5vw,3.5rem);
+  font-weight:400;line-height:1.05;letter-spacing:-.01em
+}
+.hdr-title em{font-style:italic;color:var(--ink2)}
+.hdr-sub{
+  margin-top:.75rem;font-size:12px;color:var(--ink3);
+  max-width:480px;line-height:1.6
+}
+
+/* ── CONFIG STRIP ── */
+.cfg{
+  display:grid;grid-template-columns:1fr 1fr auto auto;gap:10px;
+  align-items:end;padding:1.25rem 1.5rem;
+  border:1px solid var(--line2);border-radius:2px;
+  background:var(--white);margin-bottom:.75rem
+}
+@media(max-width:720px){.cfg{grid-template-columns:1fr;gap:8px}}
+.cfg-saved{
+  grid-column:1/-1;font-size:11px;color:var(--green);
+  display:none;align-items:center;gap:5px
+}
+.cfg-saved.show{display:flex}
+
+/* ── FIELD ── */
+.f{display:flex;flex-direction:column;gap:4px}
+.f label{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3)}
+.f input,.f select{
+  font-family:var(--mono);font-size:12px;color:var(--ink);
+  border:1px solid var(--line2);border-radius:2px;
+  padding:7px 10px;outline:none;background:var(--bg);width:100%
+}
+.f input:focus,.f select:focus{border-color:var(--ink);background:var(--white)}
+.f input::placeholder{color:var(--ink3)}
+
+/* ── IMPORT STRIP ── */
+.import-strip{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:1rem 1.5rem;border:1px solid var(--line2);border-radius:2px;
+  background:var(--white);margin-bottom:2rem
+}
+.import-strip .f{flex:0 0 160px}
+.import-strip-label{
+  font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink3);white-space:nowrap
+}
+.import-sep{width:1px;height:28px;background:var(--line2);flex-shrink:0}
+
+/* ── BUTTONS ── */
+.btn{
+  font-family:var(--mono);font-size:12px;font-weight:500;
+  cursor:pointer;border-radius:2px;padding:8px 18px;
+  border:1px solid var(--ink);background:var(--ink);color:var(--white);
+  display:inline-flex;align-items:center;gap:7px;
+  transition:background .12s,color .12s;white-space:nowrap;flex-shrink:0
+}
+.btn:hover{background:var(--white);color:var(--ink)}
+.btn:disabled{opacity:.35;cursor:default}
+.btn-ghost{background:var(--white);color:var(--ink)}
+.btn-ghost:hover{background:var(--bg)}
+.btn-danger{border-color:var(--red);background:var(--red-bg);color:var(--red)}
+.btn-danger:hover{background:var(--red);color:var(--white)}
+.btn-export{border-color:var(--blue);background:var(--blue);color:var(--white)}
+.btn-export:hover{background:var(--blue-bg);color:var(--blue)}
+.btn-sm{padding:5px 12px;font-size:11px}
+
+/* ── PROGRESS ── */
+.progress-wrap{
+  height:2px;background:var(--line);border-radius:100px;
+  overflow:hidden;margin-top:8px;display:none;width:100%
+}
+.progress-wrap.show{display:block}
+.progress-bar{height:100%;background:var(--ink);width:0%;transition:width .3s}
+.progress-log{
+  font-size:11px;color:var(--ink3);margin-top:4px;display:none;width:100%
+}
+.progress-log.show{display:block}
+
+/* ── TOOLBAR ── */
+.toolbar{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  margin-bottom:1rem
+}
+.count{font-size:11px;color:var(--ink3);margin-left:auto}
+
+/* ── TABLE ── */
+.tbl-wrap{
+  border:1px solid var(--line2);border-radius:2px;
+  background:var(--white);overflow-x:auto;
+}
+table{width:100%;border-collapse:collapse;min-width:900px}
+
+thead{border-bottom:2px solid var(--ink)}
+thead th{
+  font-family:var(--mono);font-size:10px;font-weight:500;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--ink);
+  padding:10px 10px;text-align:left;white-space:nowrap;
+  border-right:1px solid var(--line)
+}
+thead th:last-child{border-right:none}
+thead th.req::after{content:' *';color:var(--red)}
+
+tbody tr{border-bottom:1px solid var(--line)}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:var(--bg)}
+tbody td{
+  padding:3px 4px;vertical-align:middle;
+  border-right:1px solid var(--line)
+}
+tbody td:last-child{border-right:none}
+.col-no{
+  width:36px;text-align:center;
+  font-size:10px;color:var(--ink3)
+}
+.col-name{width:14%}
+.col-proj{width:7%}
+.col-projname{width:13%}
+.col-commit{width:22%}
+.col-lead{width:11%}
+.col-month{width:8%}
+.col-jira{width:12%}
+.col-git{width:12%}
+.col-del{width:36px;text-align:center}
+
+td input,td select{
+  width:100%;background:transparent;border:1px solid transparent;
+  border-radius:2px;font-family:var(--mono);
+  font-size:12px;color:var(--ink);padding:5px 6px;outline:none;
+  transition:border-color .15s,background .15s
+}
+td input:hover,td select:hover{border-color:var(--line2);background:var(--bg)}
+td input:focus,td select:focus{border-color:var(--ink);background:var(--white)}
+td input::placeholder{color:var(--ink3);font-size:11px}
+td input.lnk{color:var(--blue)}
+td input.af{background:var(--green-bg)!important;color:var(--green)!important;border-color:#b6dfc6!important}
+td input.mono-sm{font-size:11px}
+td input.inv{border-color:#e08080!important;background:var(--red-bg)!important}
+.del-btn{
+  width:26px;height:26px;border:none;background:none;padding:0;
+  cursor:pointer;border-radius:2px;display:flex;align-items:center;
+  justify-content:center;color:var(--ink3);margin:0 auto
+}
+.del-btn:hover{background:var(--red-bg);color:var(--red)}
+
+/* ── EMPTY ── */
+.empty{
+  padding:4rem 2rem;text-align:center;
+  font-size:11px;color:var(--ink3);letter-spacing:.05em
+}
+.empty-title{
+  font-family:var(--serif);font-style:italic;
+  font-size:1.4rem;color:var(--line2);margin-bottom:.5rem
+}
+
+/* ── TOAST ── */
+.toast{
+  position:fixed;bottom:2rem;left:50%;transform:translateX(-50%) translateY(8px);
+  background:var(--ink);color:var(--white);padding:9px 20px;border-radius:2px;
+  font-family:var(--mono);font-size:12px;
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;
+  white-space:nowrap;z-index:9999
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.ok{background:var(--green)}
+.toast.err{background:var(--red)}
+
+/* ── FOOTER ── */
+.foot{margin-top:2rem;font-size:11px;color:var(--ink3);line-height:1.6}
+
+/* ── DIVIDER ── */
+.div{border:none;border-top:1px solid var(--line);margin:0}
+
+/* ── SECTION LABEL ── */
+.section-label{
+  font-size:10px;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--ink3);margin-bottom:.6rem;display:flex;align-items:center;gap:8px
+}
+.section-label::after{content:'';flex:1;height:1px;background:var(--line)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- HEADER -->
+<header class="hdr">
+  <h1 class="hdr-title"><em>KUP50</em></h1>
+</header>
+
+<!-- CONFIG -->
+<div class="section-label">Konfiguracja</div>
+<div class="cfg" id="cfg-panel">
+  <div class="f">
+    <label>Profil GitLab (URL)</label>
+    <input type="text" id="cfg-profile" placeholder="https://gitlab.com/jankowalski"/>
+  </div>
+  <div class="f">
+    <label>Personal Access Token</label>
+    <input type="password" id="cfg-token" placeholder="glpat-xxxxxxxxxxxx"/>
+  </div>
+  <div class="f">
+    <label>Twoje imię i nazwisko</label>
+    <input type="text" id="cfg-name" placeholder="Jan Kowalski"/>
+  </div>
+  <div class="f">
+    <label>Baza URL Jiry (opcja)</label>
+    <input type="text" id="cfg-jira" placeholder="https://jira.firma.pl"/>
+  </div>
+  <button class="btn btn-sm" onclick="saveAndVerify()" id="cfg-btn">Zapisz i zweryfikuj</button>
+  <div class="cfg-saved" id="cfg-saved">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    Połączono jako <span id="cfg-who"></span>
+  </div>
+</div>
+
+<!-- IMPORT ONE-CLICK -->
+<div class="section-label" style="margin-top:1.5rem">Import commitów</div>
+<div class="import-strip" id="import-strip">
+  <div class="f" style="flex:0 0 140px">
+    <label>Od daty</label>
+    <input type="date" id="imp-since"/>
+  </div>
+  <div class="f" style="flex:0 0 140px">
+    <label>Do daty</label>
+    <input type="date" id="imp-until"/>
+  </div>
+  <div class="f" style="flex:0 0 140px">
+    <label>Opiekun / TL</label>
+    <input type="text" id="imp-lead" placeholder="Anna Nowak"/>
+  </div>
+  <div class="import-sep"></div>
+  <button class="btn" onclick="importAll()" id="import-btn">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+    Zaciągnij moje commity
+  </button>
+  <div class="progress-wrap" id="prog-wrap"><div class="progress-bar" id="prog-bar"></div></div>
+  <div class="progress-log" id="prog-log"></div>
+</div>
+
+<!-- TOOLBAR -->
+<div class="toolbar">
+  <button class="btn btn-export" onclick="exportXLSX()">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    Pobierz .xlsx
+  </button>
+  <button class="btn btn-ghost btn-sm" onclick="addBlankRow()">+ wiersz</button>
+  <span class="count" id="row-count">0 wierszy</span>
+  <button class="btn btn-danger btn-sm" onclick="clearAll()">Wyczyść</button>
+</div>
+
+<!-- TABLE -->
+<div class="tbl-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th class="col-no">#</th>
+        <th class="col-name req">Imię i Nazwisko</th>
+        <th class="col-proj req">ID proj.</th>
+        <th class="col-projname">Projekt</th>
+        <th class="col-commit">Commit</th>
+        <th class="col-lead">Opiekun / TL</th>
+        <th class="col-month req">Miesiąc</th>
+        <th class="col-jira">Jira</th>
+        <th class="col-git">GitLab</th>
+        <th class="col-del"></th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  <div class="empty" id="empty">
+    <div class="empty-title">brak wierszy</div>
+    Kliknij „Zaciągnij moje commity" lub dodaj wiersz ręcznie
+  </div>
+</div>
+
+<p class="foot">
+  Token przechowywany wyłącznie w localStorage przeglądarki. Pola * są wymagane w eksporcie.<br>
+  Tryb „wszystkie commity" używa <code>/api/v4/events?action=pushed</code> — GitLab przechowuje eventy z ostatnich ~3 miesięcy.
+</p>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── MONTHS ── */
+const MONTHS=['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec',
+              'Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
+
+function monthFromDate(s){
+  if(!s) return MONTHS[new Date().getMonth()];
+  return MONTHS[new Date(s).getMonth()];
+}
+
+function curMonth(){ return MONTHS[new Date().getMonth()]; }
+
+/* ── CONFIG ── */
+let cfg={host:'https://gitlab.com',token:'',name:'',jiraBase:'',username:''};
+
+function loadCfg(){
+  try{ const s=localStorage.getItem('kup50v2'); if(s) cfg={...cfg,...JSON.parse(s)}; }catch(e){}
+  document.getElementById('cfg-profile').value = (cfg.host&&cfg.username) ? cfg.host+'/'+cfg.username : (cfg.host||'');
+  document.getElementById('cfg-token').value   = cfg.token||'';
+  document.getElementById('cfg-name').value    = cfg.name||'';
+  document.getElementById('cfg-jira').value    = cfg.jiraBase||'';
+  if(cfg.token&&cfg.username) showWho(cfg.username+(cfg.name?' ('+cfg.name+')':''));
+}
+
+function parseCfgProfile(){
+  const raw=(document.getElementById('cfg-profile').value||'').trim().replace(/\/$/,'');
+  try{
+    const u=new URL(raw);
+    cfg.host=u.origin;
+    cfg.username=u.pathname.replace(/^\//,'').split('/')[0]||'';
+  }catch(e){
+    cfg.host='https://gitlab.com';
+    cfg.username=raw.replace(/^@/,'');
+  }
+}
+
+async function saveAndVerify(){
+  parseCfgProfile();
+  cfg.token   =(document.getElementById('cfg-token').value||'').trim();
+  cfg.name    =(document.getElementById('cfg-name').value||'').trim();
+  cfg.jiraBase=(document.getElementById('cfg-jira').value||'').trim().replace(/\/$/,'');
+
+  if(!cfg.token){ toast('Wpisz token','err'); return; }
+
+  const btn=document.getElementById('cfg-btn');
+  btn.disabled=true; btn.textContent='Weryfikacja…';
+  try{
+    const me=await glFetch('/api/v4/user');
+    if(!cfg.username) cfg.username=me.username;
+    if(!cfg.name)     cfg.name=me.name;
+    document.getElementById('cfg-name').value=cfg.name;
+    localStorage.setItem('kup50v2',JSON.stringify(cfg));
+    showWho(me.username+' · '+me.name);
+    toast('Zapisano i połączono ✓','ok');
+  }catch(e){
+    toast('Błąd połączenia: '+e.message,'err');
+  }
+  btn.disabled=false; btn.textContent='Zapisz i zweryfikuj';
+}
+
+function showWho(w){
+  const el=document.getElementById('cfg-saved');
+  document.getElementById('cfg-who').textContent=w;
+  el.classList.add('show');
+}
+
+/* ── GITLAB API ── */
+async function glFetch(path,params){
+  let url=cfg.host+path;
+  if(params){ url+=(url.includes('?')?'&':'?')+new URLSearchParams(params).toString(); }
+  const r=await fetch(url,{headers:{'PRIVATE-TOKEN':cfg.token}});
+  if(!r.ok){const e=await r.json().catch(()=>({})); throw new Error(e.message||'HTTP '+r.status);}
+  const d=await r.json();
+  d.__tp=parseInt(r.headers.get('X-Total-Pages')||'1');
+  return d;
+}
+
+async function glAll(path,params){
+  params={per_page:100,...(params||{})};
+  let page=1,all=[];
+  while(true){
+    const d=await glFetch(path,{...params,page});
+    const tp=d.__tp; delete d.__tp;
+    if(Array.isArray(d)) all=all.concat(d); else break;
+    if(d.length<100||page>=tp) break;
+    page++;
+    setProgress(tp?Math.round(page/tp*70):null,'Strona '+page+'/'+tp+'…');
+  }
+  return all;
+}
+
+/* ── JIRA ── */
+function jiraFromMsg(msg){
+  const m=(msg||'').match(/[A-Z][A-Z0-9]+-\d+/g);
+  if(!m||!cfg.jiraBase) return '';
+  return cfg.jiraBase+'/browse/'+m[0];
+}
+
+/* ── IMPORT ── */
+async function importAll(){
+  if(!cfg.token){ toast('Najpierw zapisz konfigurację','err'); return; }
+  if(!cfg.username){ toast('Podaj URL profilu GitLab','err'); return; }
+
+  const since=document.getElementById('imp-since').value;
+  const until=document.getElementById('imp-until').value;
+  const lead =document.getElementById('imp-lead').value.trim();
+
+  const btn=document.getElementById('import-btn');
+  btn.disabled=true;
+  setProgress(5,'Pobieranie eventów push…');
+
+  try{
+    /* 1. Fetch push events for the user */
+    const params={action:'pushed'};
+    if(since) params.after=since;
+    if(until) params.before=until;
+
+    const events=await glAll('/api/v4/users/'+encodeURIComponent(cfg.username)+'/events',params);
+
+    /* 2. Flatten commits from events */
+    const tuples=[];
+    for(const ev of events){
+      if(!ev.push_data?.commits) continue;
+      for(const c of ev.push_data.commits){
+        tuples.push({
+          sha:c.id, title:c.title||c.message||'',
+          projectId:ev.project_id, createdAt:ev.created_at
+        });
+      }
+    }
+
+    setProgress(50,'Znaleziono '+tuples.length+' commitów. Pobieranie projektów…');
+
+    /* 3. Fetch project metadata (deduplicated) */
+    const projIds=[...new Set(tuples.map(t=>t.projectId))];
+    const projMap={};
+    for(let i=0;i<projIds.length;i++){
+      try{
+        const p=await glFetch('/api/v4/projects/'+projIds[i]);
+        delete p.__tp;
+        projMap[projIds[i]]=p;
+      }catch(e){/* skip */}
+      setProgress(50+Math.round((i+1)/projIds.length*40),'Projekty: '+(i+1)+'/'+projIds.length);
+    }
+
+    setProgress(95,'Budowanie tabeli…');
+
+    /* 4. Add rows */
+    let added=0;
+    for(const t of tuples){
+      const proj=projMap[t.projectId];
+      if(!proj) continue;
+      const path=proj.path_with_namespace||proj.path;
+      const url=cfg.host+'/'+path+'/-/commit/'+t.sha;
+      addRow({
+        name:     cfg.name||'',
+        proj:     String(t.projectId),
+        projName: proj.name,
+        commit:   '['+(t.sha||'').slice(0,8)+'] '+t.title,
+        lead,
+        month:    monthFromDate(t.createdAt),
+        jira:     jiraFromMsg(t.title),
+        git:      url,
+        af:       true
+      });
+      added++;
+    }
+
+    setProgress(100,'Dodano '+added+' wierszy z '+projIds.length+' projektów.');
+    toast('Zaciągnięto '+added+' commitów ✓','ok');
+    setTimeout(resetProgress,1800);
+
+  }catch(e){
+    toast('Błąd: '+e.message,'err');
+    setProgress(0,'Błąd: '+e.message);
+  }
+  btn.disabled=false;
+}
+
+/* ── PROGRESS ── */
+function setProgress(pct,msg){
+  const w=document.getElementById('prog-wrap');
+  const b=document.getElementById('prog-bar');
+  const l=document.getElementById('prog-log');
+  w.classList.add('show'); l.classList.add('show');
+  if(pct!==null) b.style.width=pct+'%';
+  if(msg) l.textContent=msg;
+}
+function resetProgress(){
+  const w=document.getElementById('prog-wrap');
+  const b=document.getElementById('prog-bar');
+  const l=document.getElementById('prog-log');
+  w.classList.remove('show'); l.classList.remove('show');
+  b.style.width='0%'; l.textContent='';
+}
+
+/* ── ROWS ── */
+let rowId=0;
+const rowIds=[];
+
+function updateCount(){
+  const n=rowIds.length;
+  document.getElementById('row-count').textContent=
+    n+(n===1?' wiersz':n>1&&n<5?' wiersze':' wierszy');
+  document.getElementById('empty').style.display=n?'none':'block';
+}
+
+function moOpts(sel){
+  return MONTHS.map(m=>`<option${m===sel?' selected':''}>${m}</option>`).join('');
+}
+
+function esc(s){
+  return String(s||'')
+    .replace(/&/g,'&amp;').replace(/"/g,'&quot;')
+    .replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function addRow(d){
+  rowId++; const id=rowId; rowIds.push(id);
+  d=d||{};
+  const af=d.af?'af':'';
+  const tr=document.createElement('tr');
+  tr.id='r'+id;
+  tr.innerHTML=`
+    <td class="col-no">${rowIds.length}</td>
+    <td class="col-name"><input type="text" value="${esc(d.name||cfg.name||'')}" placeholder="Jan Kowalski"/></td>
+    <td class="col-proj"><input type="text" value="${esc(d.proj||'')}" class="${af}"/></td>
+    <td class="col-projname"><input type="text" value="${esc(d.projName||'')}" class="${af}"/></td>
+    <td class="col-commit"><input type="text" class="mono-sm ${af}" value="${esc(d.commit||'')}"/></td>
+    <td class="col-lead"><input type="text" value="${esc(d.lead||'')}" placeholder="Anna Nowak"/></td>
+    <td class="col-month"><select>${moOpts(d.month||curMonth())}</select></td>
+    <td class="col-jira"><input type="text" class="lnk" value="${esc(d.jira||'')}" placeholder="https://jira…"/></td>
+    <td class="col-git"><input type="text" class="lnk ${af}" value="${esc(d.git||'')}" placeholder="https://gitlab…"/></td>
+    <td class="col-del"><button class="del-btn" onclick="delRow(${id})">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button></td>`;
+  document.getElementById('tbody').appendChild(tr);
+  updateCount();
+}
+
+function addBlankRow(){ addRow({}); }
+
+function delRow(id){
+  const tr=document.getElementById('r'+id); if(!tr) return;
+  tr.style.opacity='0'; tr.style.transition='opacity .12s';
+  setTimeout(()=>{
+    tr.remove();
+    const i=rowIds.indexOf(id); if(i>-1) rowIds.splice(i,1);
+    renumber(); updateCount();
+  },120);
+}
+
+function renumber(){
+  document.querySelectorAll('#tbody tr').forEach((tr,i)=>{
+    const c=tr.querySelector('.col-no'); if(c) c.textContent=i+1;
+  });
+}
+
+function clearAll(){
+  if(!rowIds.length) return;
+  if(!confirm('Usunąć wszystkie wiersze?')) return;
+  document.getElementById('tbody').innerHTML='';
+  rowIds.length=0; updateCount();
+}
+
+/* ── EXPORT ── */
+function getRows(){
+  return [...document.querySelectorAll('#tbody tr')].map(tr=>{
+    const f=tr.querySelectorAll('input,select');
+    if(!f.length) return null;
+    return{
+      'Imię i Nazwisko':       f[0].value.trim(),
+      'ID Projektu':           f[1].value.trim(),
+      'Nazwa projektu':        f[2].value.trim(),
+      'Commit / Opis':         f[3].value.trim(),
+      'Opiekun / Team Leader': f[4].value.trim(),
+      'Miesiąc':               f[5].value,
+      'Link Jira':             f[6].value.trim(),
+      'Link GitLab':           f[7].value.trim(),
+    };
+  }).filter(Boolean);
+}
+
+function exportXLSX(){
+  const data=getRows();
+  if(!data.length){ toast('Brak wierszy','err'); return; }
+
+  // Validate
+  let ok=true;
+  document.querySelectorAll('#tbody tr').forEach((tr,i)=>{
+    const f=tr.querySelectorAll('input');
+    if(!f.length||!data[i]) return;
+    const d=data[i];
+    f[0].classList.toggle('inv',!d['Imię i Nazwisko']);
+    f[1].classList.toggle('inv',!d['ID Projektu']);
+    if(!d['Imię i Nazwisko']||!d['ID Projektu']) ok=false;
+  });
+  if(!ok){ toast('Uzupełnij wymagane pola (*)','err'); return; }
+
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.json_to_sheet(data);
+  ws['!cols']=[{wch:26},{wch:12},{wch:24},{wch:44},{wch:22},{wch:13},{wch:42},{wch:42}];
+
+  XLSX.utils.book_append_sheet(wb,ws,'KUP50');
+  const mo=data[0]['Miesiąc']||'ewidencja';
+  const yr=new Date().getFullYear();
+  XLSX.writeFile(wb,`KUP50_${mo}_${yr}.xlsx`);
+  toast('Pobrano KUP50_'+mo+'_'+yr+'.xlsx','ok');
+}
+
+/* ── TOAST ── */
+function toast(msg,type){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast show '+(type||'');
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),3200);
+}
+
+/* ── INIT ── */
+loadCfg();
+updateCount();
+
+// Default date range: current month
+(function setDefaultDates(){
+  const now=new Date();
+  const y=now.getFullYear(), m=String(now.getMonth()+1).padStart(2,'0');
+  const last=new Date(y,now.getMonth()+1,0).getDate();
+  document.getElementById('imp-since').value=`${y}-${m}-01`;
+  document.getElementById('imp-until').value=`${y}-${m}-${last}`;
+})();
+</script>
+</body>
+</html>
