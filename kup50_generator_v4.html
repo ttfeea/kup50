@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>KUP 50% — Ewidencja</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  /* neutrals */
+  --bg:        #f6f5f3;
+  --surface:   #ffffff;
+  --surface2:  #f9f8f7;
+  --border:    #e8e5e0;
+  --border2:   #d4d0ca;
+
+  /* ink */
+  --ink:       #1a1917;
+  --ink2:      #4a4744;
+  --ink3:      #9c9890;
+  --ink4:      #c4c1bc;
+
+  /* purple — primary */
+  --p900:      #1e0a3c;
+  --p800:      #2d1057;
+  --p700:      #3d1878;
+  --p600:      #4f22a0;
+  --p500:      #6332c8;
+  --p400:      #8058d8;
+  --p200:      #d4c5f5;
+  --p100:      #ede8fc;
+  --p50:       #f6f3fe;
+
+  /* status */
+  --green:     #1a7a3c;
+  --green-bg:  #edfaf3;
+  --red:       #b91c1c;
+  --red-bg:    #fef2f2;
+  --blue:      #1d4ed8;
+  --blue-bg:   #eff6ff;
+
+  --mono: 'DM Mono', monospace;
+  --sans: 'DM Sans', sans-serif;
+
+  --radius:    6px;
+  --radius-sm: 4px;
+}
+
+html { font-size: 14px; }
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--ink);
+  min-height: 100vh;
+  padding: 2.5rem 2rem 6rem;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 1140px; margin: 0 auto; }
+
+/* ── HEADER ── */
+.hdr {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 2.5rem;
+  padding-bottom: 1.75rem;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.hdr-eyebrow {
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: .5rem;
+  font-weight: 500;
+}
+.hdr-title {
+  font-family: var(--sans);
+  font-size: clamp(1.6rem, 4vw, 2.4rem);
+  font-weight: 300;
+  color: var(--ink);
+  letter-spacing: -.03em;
+  line-height: 1;
+}
+.hdr-title strong {
+  font-weight: 600;
+  color: var(--p700);
+}
+.hdr-sub {
+  margin-top: .5rem;
+  font-size: 12.5px;
+  color: var(--ink3);
+  line-height: 1.5;
+}
+
+/* ── SECTION LABEL ── */
+.section-label {
+  font-size: 10.5px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  font-weight: 600;
+  margin-bottom: .75rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.section-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* ── PANELS ── */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: .75rem;
+}
+
+/* ── CONFIG STRIP ── */
+.cfg {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+}
+@media(max-width:780px){ .cfg { grid-template-columns: 1fr 1fr; } }
+@media(max-width:480px){ .cfg { grid-template-columns: 1fr; } }
+
+.cfg-saved {
+  grid-column: 1/-1;
+  font-size: 11.5px;
+  color: var(--green);
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: .5rem .75rem;
+  background: var(--green-bg);
+  border-radius: var(--radius-sm);
+  border: 1px solid #b6e8cc;
+}
+.cfg-saved.show { display: flex; }
+
+/* ── FIELD ── */
+.f { display: flex; flex-direction: column; gap: 5px; }
+.f label {
+  font-size: 11px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  font-weight: 600;
+}
+.f input, .f select {
+  font-family: var(--sans);
+  font-size: 13px;
+  color: var(--ink);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  padding: 8px 11px;
+  outline: none;
+  background: var(--bg);
+  width: 100%;
+  transition: border-color .15s, background .15s, box-shadow .15s;
+}
+.f input:focus, .f select:focus {
+  border-color: var(--p500);
+  background: var(--surface);
+  box-shadow: 0 0 0 3px var(--p100);
+}
+.f input::placeholder { color: var(--ink4); }
+
+/* ── IMPORT STRIP ── */
+.import-strip {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.import-strip .f { flex: 0 0 148px; }
+.import-sep {
+  width: 1px;
+  height: 36px;
+  background: var(--border2);
+  flex-shrink: 0;
+  align-self: flex-end;
+}
+
+/* ── PROGRESS ── */
+.progress-wrap {
+  height: 3px;
+  background: var(--p100);
+  border-radius: 100px;
+  overflow: hidden;
+  margin-top: 10px;
+  display: none;
+  width: 100%;
+  flex-basis: 100%;
+}
+.progress-wrap.show { display: block; }
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--p600), var(--p400));
+  width: 0%;
+  transition: width .3s;
+  border-radius: 100px;
+}
+.progress-log {
+  font-size: 11px;
+  color: var(--ink3);
+  margin-top: 5px;
+  display: none;
+  width: 100%;
+  flex-basis: 100%;
+  font-family: var(--mono);
+}
+.progress-log.show { display: block; }
+
+/* ── BUTTONS ── */
+.btn {
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  padding: 8px 16px;
+  border: 1.5px solid var(--p700);
+  background: var(--p700);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  transition: background .15s, border-color .15s, box-shadow .15s, transform .08s;
+  white-space: nowrap;
+  flex-shrink: 0;
+  letter-spacing: -.01em;
+}
+.btn:hover {
+  background: var(--p600);
+  border-color: var(--p600);
+  box-shadow: 0 2px 12px rgba(99,50,200,.28);
+}
+.btn:active { transform: scale(.98); }
+.btn:disabled { opacity: .4; cursor: default; box-shadow: none; transform: none; }
+
+.btn-ghost {
+  background: var(--surface);
+  border-color: var(--border2);
+  color: var(--ink2);
+}
+.btn-ghost:hover {
+  background: var(--p50);
+  border-color: var(--p400);
+  color: var(--p700);
+  box-shadow: none;
+}
+
+.btn-outline-purple {
+  background: var(--p50);
+  border-color: var(--p400);
+  color: var(--p700);
+}
+.btn-outline-purple:hover {
+  background: var(--p100);
+  border-color: var(--p600);
+  box-shadow: 0 2px 10px rgba(99,50,200,.2);
+}
+
+.btn-danger {
+  background: var(--surface);
+  border-color: var(--border2);
+  color: var(--red);
+}
+.btn-danger:hover {
+  background: var(--red-bg);
+  border-color: var(--red);
+  box-shadow: none;
+}
+
+.btn-export {
+  background: var(--p800);
+  border-color: var(--p800);
+  color: #fff;
+  font-weight: 600;
+}
+.btn-export:hover {
+  background: var(--p700);
+  border-color: var(--p700);
+  box-shadow: 0 3px 14px rgba(45,16,87,.35);
+}
+
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+.btn-xs { padding: 4px 9px; font-size: 11px; }
+
+/* ── TOOLBAR ── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.count {
+  font-size: 12px;
+  color: var(--ink3);
+  margin-left: auto;
+  font-family: var(--mono);
+}
+
+/* ── TABLE WRAP ── */
+.tbl-wrap {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow-x: auto;
+  box-shadow: 0 1px 4px rgba(0,0,0,.04);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 920px;
+}
+
+thead { border-bottom: 1.5px solid var(--border2); }
+thead th {
+  font-family: var(--sans);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  padding: 11px 10px;
+  text-align: left;
+  white-space: nowrap;
+  background: var(--surface2);
+  border-right: 1px solid var(--border);
+}
+thead th:first-child { border-radius: var(--radius) 0 0 0; }
+thead th:last-child  { border-right: none; border-radius: 0 var(--radius) 0 0; }
+thead th.req::after  { content: ' ·'; color: var(--p500); }
+
+tbody tr { border-bottom: 1px solid var(--border); }
+tbody tr:last-child  { border-bottom: none; }
+tbody tr:hover       { background: var(--p50); }
+tbody td {
+  padding: 3px 4px;
+  vertical-align: middle;
+  border-right: 1px solid var(--border);
+}
+tbody td:last-child { border-right: none; }
+
+.col-no       { width:38px; text-align:center; }
+.col-name     { width:14%; }
+.col-proj     { width:7%; }
+.col-projname { width:13%; }
+.col-commit   { width:22%; }
+.col-lead     { width:11%; }
+.col-month    { width:8%; }
+.col-git      { width:16%; }
+.col-del      { width:38px; text-align:center; }
+
+.row-num {
+  font-size: 10px;
+  color: var(--ink4);
+  font-family: var(--mono);
+}
+
+td input, td select {
+  width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-family: var(--sans);
+  font-size: 12.5px;
+  color: var(--ink);
+  padding: 5px 7px;
+  outline: none;
+  transition: border-color .15s, background .15s, box-shadow .15s;
+}
+td input:hover, td select:hover {
+  border-color: var(--border2);
+  background: var(--bg);
+}
+td input:focus, td select:focus {
+  border-color: var(--p400);
+  background: var(--surface);
+  box-shadow: 0 0 0 2px var(--p100);
+}
+td input::placeholder { color: var(--ink4); font-size: 11.5px; }
+td input.lnk          { color: var(--blue); font-family: var(--mono); font-size: 11px; }
+td input.af            { background: var(--green-bg)!important; color: var(--green)!important; border-color: #b6e8cc!important; }
+td input.mono-sm       { font-family: var(--mono); font-size: 11px; }
+td input.inv           { border-color: #f0a0a0!important; background: var(--red-bg)!important; }
+
+.del-btn {
+  width: 28px; height: 28px;
+  border: none; background: none; padding: 0;
+  cursor: pointer; border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--ink4); margin: 0 auto;
+  transition: background .12s, color .12s;
+}
+.del-btn:hover { background: var(--red-bg); color: var(--red); }
+
+/* ── EMPTY STATE ── */
+.empty {
+  padding: 4.5rem 2rem;
+  text-align: center;
+}
+.empty-icon {
+  width: 48px; height: 48px;
+  border-radius: 12px;
+  background: var(--p50);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 1.25rem;
+  border: 1.5px dashed var(--p200);
+}
+.empty-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink2);
+  margin-bottom: .4rem;
+}
+.empty-sub { font-size: 12px; color: var(--ink3); line-height: 1.5; }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed;
+  bottom: 2rem; left: 50%;
+  transform: translateX(-50%) translateY(12px);
+  background: var(--p900);
+  color: #fff;
+  padding: 9px 20px;
+  border-radius: var(--radius);
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s, transform .2s;
+  white-space: nowrap;
+  z-index: 9999;
+  letter-spacing: -.01em;
+  box-shadow: 0 4px 20px rgba(30,10,60,.3);
+}
+.toast.show    { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.ok      { background: #14532d; }
+.toast.err     { background: var(--red); }
+
+/* ── FOOTER ── */
+.foot {
+  margin-top: 2rem;
+  font-size: 11.5px;
+  color: var(--ink3);
+  line-height: 1.7;
+}
+.foot code {
+  font-family: var(--mono);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0 4px;
+  font-size: 10.5px;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- HEADER -->
+<header class="hdr">
+  <div class="hdr-left">
+    <div class="hdr-eyebrow">Koszty uzyskania przychodu</div>
+    <h1 class="hdr-title">Ewidencja <strong>KUP 50%</strong></h1>
+    <p class="hdr-sub">Automatyczny import commitów z GitLab · Eksport do .xlsx</p>
+  </div>
+</header>
+
+<!-- CONFIG -->
+<div class="section-label">Konfiguracja</div>
+<div class="panel">
+  <div class="cfg" id="cfg-panel">
+    <div class="f">
+      <label>Profil GitLab (URL)</label>
+      <input type="text" id="cfg-profile" placeholder="https://gitlab.com/jankowalski"/>
+    </div>
+    <div class="f">
+      <label>Personal Access Token</label>
+      <input type="password" id="cfg-token" placeholder="glpat-xxxxxxxxxxxx"/>
+    </div>
+    <div class="f">
+      <label>Twoje imię i nazwisko</label>
+      <input type="text" id="cfg-name" placeholder="Jan Kowalski"/>
+    </div>
+    <button class="btn btn-sm" onclick="saveAndVerify()" id="cfg-btn">Zapisz i zweryfikuj</button>
+    <div class="cfg-saved" id="cfg-saved">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      Połączono jako <span id="cfg-who" style="font-weight:600;margin-left:3px"></span>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT -->
+<div class="section-label" style="margin-top:1.75rem">Import commitów</div>
+<div class="panel">
+  <div class="import-strip" id="import-strip">
+    <div class="f" style="flex:0 0 148px">
+      <label>Od daty</label>
+      <input type="date" id="imp-since"/>
+    </div>
+    <div class="f" style="flex:0 0 148px">
+      <label>Do daty</label>
+      <input type="date" id="imp-until"/>
+    </div>
+    <div class="f" style="flex:0 0 148px">
+      <label>Opiekun / TL</label>
+      <input type="text" id="imp-lead" placeholder="Anna Nowak"/>
+    </div>
+    <div class="import-sep"></div> 
+     <button class="btn" onclick="importAll()" id="import-btn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+      Zaciągnij moje MR
+    </button>
+    <div class="progress-wrap" id="prog-wrap"><div class="progress-bar" id="prog-bar"></div></div>
+    <div class="progress-log" id="prog-log"></div>
+  </div>
+</div>
+
+<!-- TOOLBAR -->
+<div class="toolbar" style="margin-top:1.75rem">
+  <button class="btn btn-export" onclick="exportXLSX()">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    Pobierz .xlsx
+  </button>
+  <button class="btn btn-ghost btn-sm" onclick="addBlankRow()">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    Dodaj wiersz
+  </button>
+  <span class="count" id="row-count">0 wierszy</span>
+  <button class="btn btn-danger btn-sm" onclick="clearAll()">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+    Wyczyść
+  </button>
+</div>
+
+<!-- TABLE -->
+<div class="tbl-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th class="col-no">#</th>
+        <th class="col-name req">Imię i Nazwisko</th>
+        <th class="col-proj req">ID proj.</th>
+        <th class="col-projname">Projekt</th>
+        <th class="col-commit">Merge Request</th>
+        <th class="col-lead">Opiekun / TL</th>
+        <th class="col-month req">Miesiąc</th>
+        <th class="col-git">GitLab</th>
+        <th class="col-del"></th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  <div class="empty" id="empty">
+    <div class="empty-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8058d8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+    </div>
+    <div class="empty-title">Brak wierszy</div>
+    <div class="empty-sub">Kliknij „Zaciągnij moje MR-y"<br>lub dodaj wiersz ręcznie</div>
+  </div>
+</div>
+
+<p class="foot">
+ 
+</p>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── MONTHS ── */
+const MONTHS=['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec',
+              'Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
+
+function monthFromDate(s){
+  if(!s) return MONTHS[new Date().getMonth()];
+  return MONTHS[new Date(s).getMonth()];
+}
+function curMonth(){ return MONTHS[new Date().getMonth()]; }
+
+/* ── CONFIG ── */
+let cfg={host:'https://gitlab.com',token:'',name:'',username:''};
+
+function loadCfg(){
+  try{ const s=localStorage.getItem('kup50v2'); if(s) cfg={...cfg,...JSON.parse(s)}; }catch(e){}
+  document.getElementById('cfg-profile').value = (cfg.host&&cfg.username) ? cfg.host+'/'+cfg.username : (cfg.host||'');
+  document.getElementById('cfg-token').value   = cfg.token||'';
+  document.getElementById('cfg-name').value    = cfg.name||'';
+  if(cfg.token&&cfg.username) showWho(cfg.username+(cfg.name?' · '+cfg.name:''));
+}
+
+function parseCfgProfile(){
+  const raw=(document.getElementById('cfg-profile').value||'').trim().replace(/\/$/,'');
+  try{
+    const u=new URL(raw);
+    cfg.host=u.origin;
+    cfg.username=u.pathname.replace(/^\//,'').split('/')[0]||'';
+  }catch(e){
+    cfg.host='https://gitlab.com';
+    cfg.username=raw.replace(/^@/,'');
+  }
+}
+
+async function saveAndVerify(){
+  parseCfgProfile();
+  cfg.token   =(document.getElementById('cfg-token').value||'').trim();
+  cfg.name    =(document.getElementById('cfg-name').value||'').trim();
+
+  if(!cfg.token){ toast('Wpisz token','err'); return; }
+
+  const btn=document.getElementById('cfg-btn');
+  btn.disabled=true; btn.textContent='Weryfikacja…';
+  try{
+    const me=await glFetch('/api/v4/user');
+    if(!cfg.username) cfg.username=me.username;
+    if(!cfg.name)     cfg.name=me.name;
+    document.getElementById('cfg-name').value=cfg.name;
+    localStorage.setItem('kup50v2',JSON.stringify(cfg));
+    showWho(me.username+' · '+me.name);
+    toast('Zapisano i połączono ✓','ok');
+  }catch(e){
+    toast('Błąd połączenia: '+e.message,'err');
+  }
+  btn.disabled=false; btn.textContent='Zapisz i zweryfikuj';
+}
+
+function showWho(w){
+  const el=document.getElementById('cfg-saved');
+  document.getElementById('cfg-who').textContent=w;
+  el.classList.add('show');
+}
+
+/* ── GITLAB API ── */
+async function glFetch(path,params){
+  let url=cfg.host+path;
+  if(params){ url+=(url.includes('?')?'&':'?')+new URLSearchParams(params).toString(); }
+
+  // Try PRIVATE-TOKEN first, fall back to Bearer if 401/403
+  let r = await fetch(url,{headers:{'PRIVATE-TOKEN':cfg.token}});
+  if((r.status===401||r.status===403)){
+    r = await fetch(url,{headers:{'Authorization':'Bearer '+cfg.token}});
+  }
+
+  if(!r.ok){
+    let msg='HTTP '+r.status;
+    if(r.status===401) msg='Błąd 401 — nieprawidłowy token lub brak uprawnień (wymagany scope: read_api + read_user)';
+    else if(r.status===403) msg='Błąd 403 — token nie ma dostępu do tego zasobu. Sprawdź scope tokenu (read_api, read_user) i czy nie jest wygasły';
+    else if(r.status===404) msg='Błąd 404 — nie znaleziono zasobu. Sprawdź URL profilu';
+    else { try{ const e=await r.json(); msg=e.message||msg; }catch(e){} }
+    throw new Error(msg);
+  }
+  const d=await r.json();
+  d.__tp=parseInt(r.headers.get('X-Total-Pages')||'1');
+  return d;
+}
+
+async function glAll(path,params){
+  params={per_page:100,...(params||{})};
+  let page=1,all=[];
+  while(true){
+    const d=await glFetch(path,{...params,page});
+    const tp=d.__tp; delete d.__tp;
+    if(Array.isArray(d)) all=all.concat(d); else break;
+    if(d.length<100||page>=tp) break;
+    page++;
+    setProgress(tp?Math.round(page/tp*70):null,'Strona '+page+'/'+tp+'…');
+  }
+  return all;
+}
+
+/* ── IMPORT ── */
+async function importAll(){
+  if(!cfg.token){ toast('Najpierw zapisz konfigurację','err'); return; }
+  if(!cfg.username){ toast('Podaj URL profilu GitLab','err'); return; }
+
+  const since=document.getElementById('imp-since').value;
+  const until=document.getElementById('imp-until').value;
+  const lead =document.getElementById('imp-lead').value.trim();
+
+  const btn=document.getElementById('import-btn');
+  btn.disabled=true;
+  setProgress(5,'Pobieranie merge requestów…');
+
+  try{
+    // Fetch MRs authored by the user across all projects
+    const params={ scope:'created_by_me', state:'all' };
+    if(since) params.created_after  = since+'T00:00:00Z';
+    if(until) params.created_before = until+'T23:59:59Z';
+
+    const mrs = await glAll('/api/v4/merge_requests', params);
+
+    setProgress(80, 'Znaleziono '+mrs.length+' MR-ów. Budowanie tabeli…');
+
+    if(mrs.length===0){
+      toast('Nie znaleziono żadnych MR-ów w tym okresie','err');
+      btn.disabled=false;
+      resetProgress();
+      return;
+    }
+
+    let added=0;
+    for(const mr of mrs){
+      const url  = mr.web_url;
+      const proj = mr.references?.full ? mr.references.full.split('!')[0] : '';
+      addRow({
+        name:     cfg.name||'',
+        proj:     String(mr.project_id),
+        projName: mr.references?.full?.split('!')?.[0]?.replace(/\/$/, '') || String(mr.project_id),
+        commit:   '!'+mr.iid+' '+mr.title,
+        lead,
+        month:    monthFromDate(mr.created_at),
+        git:      url,
+        af:       true
+      });
+      added++;
+    }
+
+    setProgress(100,'Dodano '+added+' wierszy.');
+    toast('Zaciągnięto '+added+' MR-ów ✓','ok');
+    setTimeout(resetProgress,1800);
+
+  }catch(e){
+    toast('Błąd: '+e.message,'err');
+    setProgress(0,'Błąd: '+e.message);
+  }
+  btn.disabled=false;
+}
+
+/* ── PROGRESS ── */
+function setProgress(pct,msg){
+  const w=document.getElementById('prog-wrap');
+  const b=document.getElementById('prog-bar');
+  const l=document.getElementById('prog-log');
+  w.classList.add('show'); l.classList.add('show');
+  if(pct!==null) b.style.width=pct+'%';
+  if(msg) l.textContent=msg;
+}
+function resetProgress(){
+  const w=document.getElementById('prog-wrap');
+  const b=document.getElementById('prog-bar');
+  const l=document.getElementById('prog-log');
+  w.classList.remove('show'); l.classList.remove('show');
+  b.style.width='0%'; l.textContent='';
+}
+
+/* ── ROWS ── */
+let rowId=0;
+const rowIds=[];
+
+function updateCount(){
+  const n=rowIds.length;
+  document.getElementById('row-count').textContent=
+    n+(n===1?' wiersz':n>1&&n<5?' wiersze':' wierszy');
+  document.getElementById('empty').style.display=n?'none':'block';
+}
+
+function moOpts(sel){
+  return MONTHS.map(m=>`<option${m===sel?' selected':''}>${m}</option>`).join('');
+}
+
+function esc(s){
+  return String(s||'')
+    .replace(/&/g,'&amp;').replace(/"/g,'&quot;')
+    .replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function addRow(d){
+  rowId++; const id=rowId; rowIds.push(id);
+  d=d||{};
+  const af=d.af?'af':'';
+  const tr=document.createElement('tr');
+  tr.id='r'+id;
+  tr.innerHTML=`
+    <td class="col-no"><span class="row-num">${rowIds.length}</span></td>
+    <td class="col-name"><input type="text" value="${esc(d.name||cfg.name||'')}" placeholder="Jan Kowalski"/></td>
+    <td class="col-proj"><input type="text" value="${esc(d.proj||'')}" class="${af}"/></td>
+    <td class="col-projname"><input type="text" value="${esc(d.projName||'')}" class="${af}"/></td>
+    <td class="col-commit"><input type="text" class="mono-sm ${af}" value="${esc(d.commit||'')}"/></td>
+    <td class="col-lead"><input type="text" value="${esc(d.lead||'')}" placeholder="Anna Nowak"/></td>
+    <td class="col-month"><select>${moOpts(d.month||curMonth())}</select></td>
+    <td class="col-git"><input type="text" class="lnk ${af}" value="${esc(d.git||'')}" placeholder="https://gitlab…"/></td>
+    <td class="col-del"><button class="del-btn" onclick="delRow(${id})" title="Usuń wiersz">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button></td>`;
+  document.getElementById('tbody').appendChild(tr);
+  updateCount();
+}
+
+function addBlankRow(){ addRow({}); }
+
+function delRow(id){
+  const tr=document.getElementById('r'+id); if(!tr) return;
+  tr.style.opacity='0'; tr.style.transition='opacity .15s';
+  setTimeout(()=>{
+    tr.remove();
+    const i=rowIds.indexOf(id); if(i>-1) rowIds.splice(i,1);
+    renumber(); updateCount();
+  },150);
+}
+
+function renumber(){
+  document.querySelectorAll('#tbody tr').forEach((tr,i)=>{
+    const c=tr.querySelector('.row-num'); if(c) c.textContent=i+1;
+  });
+}
+
+function clearAll(){
+  if(!rowIds.length) return;
+  if(!confirm('Usunąć wszystkie wiersze?')) return;
+  document.getElementById('tbody').innerHTML='';
+  rowIds.length=0; updateCount();
+}
+
+/* ── EXPORT ── */
+function getRows(){
+  return [...document.querySelectorAll('#tbody tr')].map(tr=>{
+    const f=tr.querySelectorAll('input,select');
+    if(!f.length) return null;
+    return{
+      'Imię i Nazwisko':       f[0].value.trim(),
+      'ID Projektu':           f[1].value.trim(),
+      'Nazwa projektu':        f[2].value.trim(),
+      'Merge Request':          f[3].value.trim(),
+      'Opiekun / Team Leader': f[4].value.trim(),
+      'Miesiąc':               f[5].value,
+      'Link GitLab':           f[6].value.trim(),
+    };
+  }).filter(Boolean);
+}
+
+function exportXLSX(){
+  const data=getRows();
+  if(!data.length){ toast('Brak wierszy','err'); return; }
+
+  let ok=true;
+  document.querySelectorAll('#tbody tr').forEach((tr,i)=>{
+    const f=tr.querySelectorAll('input');
+    if(!f.length||!data[i]) return;
+    const d=data[i];
+    f[0].classList.toggle('inv',!d['Imię i Nazwisko']);
+    f[1].classList.toggle('inv',!d['ID Projektu']);
+    if(!d['Imię i Nazwisko']||!d['ID Projektu']) ok=false;
+  });
+  if(!ok){ toast('Uzupełnij wymagane pola (·)','err'); return; }
+
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.json_to_sheet(data);
+  ws['!cols']=[{wch:26},{wch:12},{wch:24},{wch:44},{wch:22},{wch:13},{wch:48}];
+  XLSX.utils.book_append_sheet(wb,ws,'KUP50');
+  const mo=data[0]['Miesiąc']||'ewidencja';
+  const yr=new Date().getFullYear();
+  XLSX.writeFile(wb,`KUP50_${mo}_${yr}.xlsx`);
+  toast('Pobrano KUP50_'+mo+'_'+yr+'.xlsx ✓','ok');
+}
+
+/* ── TOAST ── */
+function toast(msg,type){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast show '+(type||'');
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),3200);
+}
+
+/* ── INIT ── */
+loadCfg();
+updateCount();
+
+(function setDefaultDates(){
+  const now=new Date();
+  const y=now.getFullYear(), m=String(now.getMonth()+1).padStart(2,'0');
+  const last=new Date(y,now.getMonth()+1,0).getDate();
+  document.getElementById('imp-since').value=`${y}-${m}-01`;
+  document.getElementById('imp-until').value=`${y}-${m}-${last}`;
+})();
+</script>
+</body>
+</html>
