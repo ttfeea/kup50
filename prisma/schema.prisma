@@ -1,0 +1,45 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  employee
+  manager
+}
+
+enum ReportStatus {
+  DRAFT
+  SUBMITTED
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  role      UserRole @default(employee)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  reports Report[]
+
+  @@map("users")
+}
+
+model Report {
+  id        String       @id @default(uuid())
+  title     String
+  content   String       @db.Text
+  status    ReportStatus @default(DRAFT)
+  userId    String       @map("user_id")
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("reports")
+}

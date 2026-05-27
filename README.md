@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # kup50
 
 
@@ -91,3 +92,94 @@ For open source projects, say how it is licensed.
 
 ## Project status
 If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+=======
+# KUP50 API — Phase 1
+
+NestJS REST API for internal employee reporting with email/password auth and JWT.
+
+## Stack
+
+- NestJS 11 + TypeScript
+- PostgreSQL + Prisma
+- JWT + bcrypt
+
+## API (Phase 1)
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/health` | No | Health check |
+| POST | `/auth/register` | No | Register (company email only) |
+| POST | `/auth/login` | No | Login |
+| GET | `/users/me` | JWT | Current user |
+| POST | `/reports` | JWT | Create report |
+| GET | `/reports` | JWT | List own reports |
+| GET | `/reports/:id` | JWT | Get own report |
+
+## Setup
+
+1. Copy env and configure:
+
+   ```powershell
+   Copy-Item .env.example .env
+   ```
+
+   Required variables: `DATABASE_URL`, `JWT_SECRET`, `COMPANY_EMAIL_DOMAIN` (e.g. `@company.com`).
+
+2. Install and migrate:
+
+   ```powershell
+   npm install
+   npx prisma migrate reset
+   ```
+
+   `migrate reset` recreates the database from migrations (dev only; wipes data).
+
+3. Run:
+
+   ```powershell
+   npm run start:dev
+   ```
+
+## Example requests
+
+**Register**
+
+```http
+POST /auth/register
+Content-Type: application/json
+
+{
+  "email": "john@company.com",
+  "password": "password123",
+  "role": "employee"
+}
+```
+
+**Login**
+
+```http
+POST /auth/login
+Content-Type: application/json
+
+{
+  "email": "john@company.com",
+  "password": "password123"
+}
+```
+
+**Create report** (use `accessToken` from login)
+
+```http
+POST /reports
+Authorization: Bearer <accessToken>
+Content-Type: application/json
+
+{
+  "title": "Weekly report",
+  "content": "Completed tasks...",
+  "status": "DRAFT"
+}
+```
+
+Status values: `DRAFT` | `SUBMITTED` (defaults to `DRAFT`).
+>>>>>>> 0efbb6c (Phase 1: NestJS, Prisma, PostgreSQL; register, login, reports)
