@@ -17,12 +17,21 @@ enum ReportStatus {
   SUBMITTED
 }
 
+enum ReportItemSource {
+  JIRA
+  GITLAB
+}
+
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
   password  String
   role      UserRole @default(employee)
   createdAt DateTime @default(now()) @map("created_at")
+  fullname  String?
+  position  String?
+  department String?
+  managerName String?
 
   reports Report[]
 
@@ -30,16 +39,36 @@ model User {
 }
 
 model Report {
-  id        String       @id @default(uuid())
-  title     String
-  content   String       @db.Text
-  status    ReportStatus @default(DRAFT)
-  userId    String       @map("user_id")
-  createdAt DateTime     @default(now()) @map("created_at")
-  updatedAt DateTime     @updatedAt @map("updated_at")
+  id                 String       @id @default(uuid())
+  periodStart        DateTime     @map("period_start")
+  periodEnd          DateTime     @map("period_end")
+  status             ReportStatus @default(DRAFT)
+  userId             String       @map("user_id")
+  createdAt          DateTime     @default(now()) @map("created_at")
+  updatedAt          DateTime     @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  reportItems ReportItem[]
+
   @@index([userId])
   @@map("reports")
+}
+
+model ReportItem {
+  id         String           @id @default(uuid())
+  reportId   String           @map("report_id")
+  source     ReportItemSource
+  externalId String           @map("external_id")
+  title      String
+  url        String?
+  type       String?
+  metadata   Json?
+  createdAt  DateTime         @default(now()) @map("created_at")
+  updatedAt  DateTime         @updatedAt @map("updated_at")
+
+  report     Report           @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId])
+  @@map("report_items")
 }
