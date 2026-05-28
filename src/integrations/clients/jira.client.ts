@@ -19,6 +19,34 @@ type JiraSearchResponse = {
 
 @Injectable()
 export class JiraClient extends BaseClient {
+  async validateToken(options: {
+    token: string;
+    baseUrl?: string | null;
+    accountEmail?: string | null;
+  }): Promise<void> {
+    if (!options.baseUrl || !options.accountEmail) {
+      throw new BadRequestException(
+        'Jira integrations require baseUrl and accountEmail',
+      );
+    }
+
+    const baseUrl = options.baseUrl.replace(/\/$/, '');
+    const auth = Buffer.from(
+      `${options.accountEmail}:${options.token}`,
+    ).toString('base64');
+
+    await this.requestJson<unknown>(
+      `${baseUrl}/rest/api/3/myself`,
+      {
+        headers: {
+          Authorization: `Basic ${auth}`,
+          Accept: 'application/json',
+        },
+      },
+      'Jira',
+    );
+  }
+
   async fetchRecentItems(options: {
     token: string;
     baseUrl?: string | null;

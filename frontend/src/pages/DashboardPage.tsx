@@ -25,7 +25,9 @@ export function DashboardPage() {
           ['Connected sources', '2'],
         ].map(([label, value]) => (
           <Panel key={label}>
-            <p className="text-sm text-ink-muted dark:text-slate-400">{label}</p>
+            <p className="text-sm text-ink-muted dark:text-slate-400">
+              {label}
+            </p>
             <p className="mt-3 text-3xl font-semibold text-ink dark:text-white">
               {value}
             </p>
@@ -57,7 +59,10 @@ export function DashboardPage() {
           </h2>
           <div className="mt-4 space-y-3">
             {reportItems.map((item) => (
-              <div key={item.title} className="rounded-md bg-slate-50 p-3 dark:bg-slate-950">
+              <div
+                key={item.title}
+                className="rounded-md bg-slate-50 p-3 dark:bg-slate-950"
+              >
                 <p className="text-sm font-medium">{item.title}</p>
                 <p className="mt-1 text-xs text-ink-muted dark:text-slate-400">
                   {item.source} · {item.type} · {item.status}

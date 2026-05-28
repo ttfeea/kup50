@@ -17,6 +17,22 @@ type GitLabMergeRequest = GitLabIssue;
 
 @Injectable()
 export class GitLabClient extends BaseClient {
+  async validateToken(options: {
+    token: string;
+    baseUrl?: string | null;
+  }): Promise<void> {
+    const baseUrl = (options.baseUrl ?? 'https://gitlab.com').replace(
+      /\/$/,
+      '',
+    );
+
+    await this.requestJson<unknown>(
+      `${baseUrl}/api/v4/user`,
+      { headers: { 'PRIVATE-TOKEN': options.token } },
+      'GitLab',
+    );
+  }
+
   async fetchRecentItems(options: {
     token: string;
     baseUrl?: string | null;

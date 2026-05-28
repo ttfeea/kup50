@@ -16,6 +16,28 @@ type GitHubIssue = {
 
 @Injectable()
 export class GitHubClient extends BaseClient {
+  async validateToken(options: {
+    token: string;
+    baseUrl?: string | null;
+  }): Promise<void> {
+    const baseUrl = (options.baseUrl ?? 'https://api.github.com').replace(
+      /\/$/,
+      '',
+    );
+
+    await this.requestJson<unknown>(
+      `${baseUrl}/user`,
+      {
+        headers: {
+          Authorization: `Bearer ${options.token}`,
+          Accept: 'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2022-11-28',
+        },
+      },
+      'GitHub',
+    );
+  }
+
   async fetchRecentItems(options: {
     token: string;
     baseUrl?: string | null;

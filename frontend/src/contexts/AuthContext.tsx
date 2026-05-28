@@ -5,6 +5,7 @@ import {
   useMemo,
   useState,
 } from 'react';
+import { loginRequest } from '../api/auth';
 
 type MockUser = {
   id: string;
@@ -15,8 +16,9 @@ type MockUser = {
 
 type AuthContextValue = {
   user: MockUser | null;
+  accessToken: string | null;
   isAuthenticated: boolean;
-  login: () => void;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => void;
 };
 
@@ -30,16 +32,46 @@ const mockUser: MockUser = {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: PropsWithChildren) {
-  const [user, setUser] = useState<MockUser | null>(mockUser);
+  const [accessToken, setAccessToken] = useState<string | null>(() =>
+    localStorage.getItem('kup50-access-token'),
+  );
+  const [user, setUser] = useState<MockUser | null>(() => {
+    const stored = localStorage.getItem('kup50-user');
+
+    if (!stored) {
+      return accessToken ? mockUser : null;
+    }
+
+    return JSON.parse(stored) as MockUser;
+  });
 
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
-      isAuthenticated: Boolean(user),
-      login: () => setUser(mockUser),
-      logout: () => setUser(null),
+      accessToken,
+      isAuthenticated: Boolean(user && accessToken),
+      login: async (email: string, password: string) => {
+        const response = await loginRequest(email, password);
+        const nextUser: MockUser = {
+          id: response.user.id,
+          name: response.user.fullname ?? response.user.email,
+          email: response.user.email,
+          role: response.user.role,
+        };
+
+        localStorage.setItem('kup50-access-token', response.accessToken);
+        localStorage.setItem('kup50-user', JSON.stringify(nextUser));
+        setAccessToken(response.accessToken);
+        setUser(nextUser);
+      },
+      logout: () => {
+        localStorage.removeItem('kup50-access-token');
+        localStorage.removeItem('kup50-user');
+        setAccessToken(null);
+        setUser(null);
+      },
     }),
-    [user],
+    [accessToken, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

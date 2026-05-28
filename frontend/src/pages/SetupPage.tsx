@@ -1,6 +1,6 @@
+import { IntegrationSettingsPanel } from '../components/integrations/IntegrationSettingsPanel';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Panel } from '../components/ui/Panel';
-import { integrations } from '../data/mockData';
 
 export function SetupPage() {
   return (
@@ -37,29 +37,7 @@ export function SetupPage() {
             ))}
           </div>
         </Panel>
-        <Panel>
-          <h2 className="text-base font-semibold text-ink dark:text-white">
-            Integrations
-          </h2>
-          <div className="mt-4 space-y-3">
-            {integrations.map((integration) => (
-              <div
-                key={integration.name}
-                className="flex items-center justify-between rounded-md border border-slate-200 p-3 dark:border-slate-800"
-              >
-                <div>
-                  <p className="text-sm font-medium">{integration.name}</p>
-                  <p className="text-xs text-ink-muted dark:text-slate-400">
-                    {integration.detail}
-                  </p>
-                </div>
-                <span className="rounded-md bg-slate-100 px-2 py-1 text-xs dark:bg-slate-800">
-                  {integration.status}
-                </span>
-              </div>
-            ))}
-          </div>
-        </Panel>
+        <IntegrationSettingsPanel />
       </div>
     </div>
   );

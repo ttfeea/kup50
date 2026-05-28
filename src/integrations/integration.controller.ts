@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -32,6 +33,24 @@ export class IntegrationController {
   ) {
     const provider = this.integrationService.parseProvider(providerParam);
     return this.integrationService.storeToken(user.id, provider, dto);
+  }
+
+  @Delete(':provider')
+  disconnect(
+    @CurrentUser() user: SafeUser,
+    @Param('provider') providerParam: string,
+  ) {
+    const provider = this.integrationService.parseProvider(providerParam);
+    return this.integrationService.disconnect(user.id, provider);
+  }
+
+  @Post(':provider/check')
+  checkConnection(
+    @CurrentUser() user: SafeUser,
+    @Param('provider') providerParam: string,
+  ) {
+    const provider = this.integrationService.parseProvider(providerParam);
+    return this.integrationService.checkConnection(user.id, provider);
   }
 
   @Get(':provider/items')

@@ -1,4 +1,5 @@
 import { ArrowRight, Moon, Sun } from 'lucide-react';
+import { FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -7,10 +8,26 @@ export function LoginPage() {
   const { login } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const [email, setEmail] = useState('marta.kowalska@precisely.com');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  function handleLogin() {
-    login();
-    navigate('/dashboard');
+  async function handleLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    try {
+      await login(email, password);
+      navigate('/dashboard');
+    } catch (loginError) {
+      setError(
+        loginError instanceof Error ? loginError.message : 'Sign in failed',
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -26,7 +43,7 @@ export function LoginPage() {
                 KUP50
               </h1>
               <p className="text-sm text-ink-muted dark:text-slate-400">
-                Mock sign in
+                Sign in
               </p>
             </div>
           </div>
@@ -36,17 +53,21 @@ export function LoginPage() {
             className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 text-slate-700 dark:border-slate-800 dark:text-slate-200"
             aria-label="Toggle theme"
           >
-            {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            {theme === 'dark' ? (
+              <Sun className="h-5 w-5" />
+            ) : (
+              <Moon className="h-5 w-5" />
+            )}
           </button>
         </div>
-        <div className="space-y-4">
+        <form className="space-y-4" onSubmit={handleLogin}>
           <label className="block">
             <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
               Email
             </span>
             <input
-              value="marta.kowalska@example.com"
-              readOnly
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
               className="mt-1 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
             />
           </label>
@@ -55,21 +76,26 @@ export function LoginPage() {
               Password
             </span>
             <input
-              value="mock-password"
-              readOnly
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
               type="password"
               className="mt-1 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
             />
           </label>
-        </div>
-        <button
-          type="button"
-          onClick={handleLogin}
-          className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-md bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700"
-        >
-          Continue
-          <ArrowRight className="h-4 w-4" aria-hidden="true" />
-        </button>
+          {error ? (
+            <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-300">
+              {error}
+            </p>
+          ) : null}
+          <button
+            type="submit"
+            disabled={loading}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {loading ? 'Signing in...' : 'Continue'}
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </form>
       </section>
     </main>
   );
