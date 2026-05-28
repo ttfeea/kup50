@@ -1,11 +1,19 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { SafeUser } from '../common/utils/user.mapper';
+import { FetchIntegrationItemsDto } from '../integrations/dto/fetch-integration-items.dto';
 import { CreateReportDto } from './dto/create-report.dto';
 import { AttachReportItemsDto } from './dto/attach-report-items.dto';
 import { ReportsService } from './reports.service';
-
 
 @Controller('reports')
 @UseGuards(JwtAuthGuard)
@@ -25,6 +33,15 @@ export class ReportsController {
   @Get(':id')
   findOne(@CurrentUser() user: SafeUser, @Param('id') id: string) {
     return this.reportsService.getReportWithItems(user.id, id);
+  }
+
+  @Get(':id/fetch-items')
+  fetchItems(
+    @CurrentUser() user: SafeUser,
+    @Param('id') id: string,
+    @Query() query: FetchIntegrationItemsDto,
+  ) {
+    return this.reportsService.fetchPreviewItems(user.id, id, query.limit);
   }
 
   @Post(':id/items')

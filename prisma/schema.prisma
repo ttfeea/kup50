@@ -20,6 +20,7 @@ enum ReportStatus {
 enum ReportItemSource {
   JIRA
   GITLAB
+  GITHUB
 }
 
 model User {
@@ -34,8 +35,26 @@ model User {
   managerName String?
 
   reports Report[]
+  integrationTokens IntegrationToken[]
 
   @@map("users")
+}
+
+model IntegrationToken {
+  id           String           @id @default(uuid())
+  userId       String           @map("user_id")
+  provider     ReportItemSource
+  token        String
+  baseUrl      String?          @map("base_url")
+  accountEmail String?          @map("account_email")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+  @@index([userId])
+  @@map("integration_tokens")
 }
 
 model Report {

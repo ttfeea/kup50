@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, ReportItemSource, ReportStatus } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
+import { IntegrationService } from '../integrations/integration.service';
 import { CreateReportDto } from './dto/create-report.dto';
 import { AttachReportItemDto } from './dto/attach-report-items.dto';
 
@@ -15,7 +16,10 @@ type ReportItemAttachInput = {
 
 @Injectable()
 export class ReportsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly integrationService: IntegrationService,
+  ) {}
 
   private getDefaultPeriodWindow(): {
     periodStart: Date;
@@ -114,6 +118,12 @@ export class ReportsService {
         },
       },
     });
+  }
+
+  async fetchPreviewItems(userId: string, reportId: string, limit = 25) {
+    await this.assertOwnedReport(userId, reportId);
+
+    return this.integrationService.fetchConfiguredItems(userId, limit);
   }
 
   // Backward-compatible method names (used by earlier controller code).

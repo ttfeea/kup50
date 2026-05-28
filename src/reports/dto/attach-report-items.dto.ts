@@ -42,4 +42,3 @@ export class AttachReportItemsDto {
   @Type(() => AttachReportItemDto)
   items: AttachReportItemDto[];
 }
-
