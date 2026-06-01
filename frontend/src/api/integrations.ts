@@ -43,13 +43,10 @@ export function checkIntegration(
   authToken: string | null,
   provider: IntegrationProvider,
 ) {
-  return apiRequest<{ connected: boolean; message: string }>(
-    `/integrations/${provider}/check`,
-    {
-      method: 'POST',
-      token: authToken,
-    },
-  );
+  return apiRequest<IntegrationStatusDto>(`/integrations/${provider}/check`, {
+    method: 'POST',
+    token: authToken,
+  });
 }
 
 export function disconnectIntegration(

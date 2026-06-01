@@ -2,6 +2,7 @@ import {
   BadRequestException,
   HttpException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { IntegrationToken, ReportItemSource } from '@prisma/client';
@@ -11,7 +12,8 @@ import { GitHubClient } from './clients/github.client';
 import { GitLabClient } from './clients/gitlab.client';
 import { JiraClient } from './clients/jira.client';
 import { StoreIntegrationTokenDto } from './dto/store-integration-token.dto';
-import { mapExternalItemsToReportItems } from './mappers/report-item.mapper';
+import { mapWorkItemsToAttachDto } from './mappers/work-item.mapper';
+import { WorkItem } from '../common/types/work-item.type';
 
 const supportedProviders = new Set<ReportItemSource>([
   ReportItemSource.JIRA,
@@ -35,6 +37,8 @@ type IntegrationStatusDto = {
 
 @Injectable()
 export class IntegrationService {
+  private readonly logger = new Logger(IntegrationService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jiraClient: JiraClient,
@@ -43,7 +47,7 @@ export class IntegrationService {
   ) {}
 
   parseProvider(provider: string): ReportItemSource {
-    const normalized = provider.toUpperCase() as ReportItemSource;
+    const normalized = provider.trim().toUpperCase() as ReportItemSource;
 
     if (!supportedProviders.has(normalized)) {
       throw new BadRequestException('Unsupported integration provider');
@@ -57,6 +61,11 @@ export class IntegrationService {
     provider: ReportItemSource,
     dto: StoreIntegrationTokenDto,
   ) {
+    const normalizedDto = this.normalizeStoredTokenInput(dto);
+    this.logger.debug(
+      `Saving integration token for provider=${provider}, tokenLength=${normalizedDto.token.length}, baseUrl=${normalizedDto.baseUrl ?? 'none'}`,
+    );
+
     const token = await this.prisma.integrationToken.upsert({
       where: {
         userId_provider: {
@@ -67,22 +76,23 @@ export class IntegrationService {
       create: {
         userId,
         provider,
-        token: dto.token,
-        baseUrl: dto.baseUrl,
-        accountEmail: dto.accountEmail,
+        token: normalizedDto.token,
+        baseUrl: normalizedDto.baseUrl ?? null,
+        accountEmail: normalizedDto.accountEmail ?? null,
+        connectionStatus: 'missing',
+        connectionMessage: 'Token saved. Use Check connection to validate it.',
       },
       update: {
-        token: dto.token,
-        baseUrl: dto.baseUrl,
-        accountEmail: dto.accountEmail,
+        token: normalizedDto.token,
+        baseUrl: normalizedDto.baseUrl ?? null,
+        accountEmail: normalizedDto.accountEmail ?? null,
+        connectionStatus: 'missing',
+        connectionMessage: 'Token saved. Use Check connection to validate it.',
+        connectionCheckedAt: null,
       },
     });
 
-    return this.toStatusDto(token, {
-      connected: true,
-      status: 'connected',
-      message: 'Token saved',
-    });
+    return this.statusFromStoredToken(token);
   }
 
   async listTokens(userId: string) {
@@ -103,7 +113,7 @@ export class IntegrationService {
           return this.toMissingStatus(provider);
         }
 
-        return this.validateStoredToken(token);
+        return this.statusFromStoredToken(token);
       }),
     );
   }
@@ -119,7 +129,7 @@ export class IntegrationService {
   async checkConnection(
     userId: string,
     provider: ReportItemSource,
-  ): Promise<{ connected: boolean; message: string }> {
+  ): Promise<IntegrationStatusDto> {
     const token = await this.prisma.integrationToken.findUnique({
       where: {
         userId_provider: {
@@ -130,25 +140,28 @@ export class IntegrationService {
     });
 
     if (!token) {
-      return {
-        connected: false,
-        message: 'Integration is not connected',
-      };
+      return this.toMissingStatus(provider);
     }
 
-    const status = await this.validateStoredToken(token);
+    this.logger.debug(
+      `Checking integration provider=${provider}, tokenLength=${token.token.length}`,
+    );
 
-    return {
-      connected: status.connected,
-      message: status.message,
-    };
+    const status = await this.validateStoredToken(token);
+    await this.persistConnectionStatus(token.id, status);
+    const updated = await this.prisma.integrationToken.findUniqueOrThrow({
+      where: { id: token.id },
+    });
+
+    return this.statusFromStoredToken(updated);
   }
 
   async fetchItems(
     userId: string,
     provider: ReportItemSource,
-    limit = 25,
+    options?: { limit?: number; since?: Date },
   ): Promise<{ items: AttachReportItemDto[] }> {
+    const limit = options?.limit ?? 25;
     const token = await this.prisma.integrationToken.findUnique({
       where: {
         userId_provider: {
@@ -162,15 +175,16 @@ export class IntegrationService {
       throw new NotFoundException('Integration token not found');
     }
 
-    const externalItems = await this.fetchExternalItems(token, limit);
+    const workItems = await this.fetchExternalItems(token, limit, options?.since);
 
-    return { items: mapExternalItemsToReportItems(externalItems) };
+    return { items: mapWorkItemsToAttachDto(workItems) };
   }
 
   async fetchConfiguredItems(
     userId: string,
-    limit = 25,
-  ): Promise<{ items: AttachReportItemDto[] }> {
+    options?: { limit?: number; since?: Date },
+  ): Promise<{ items: WorkItem[] }> {
+    const limit = options?.limit ?? 100;
     const tokens = await this.prisma.integrationToken.findMany({
       where: {
         userId,
@@ -181,30 +195,53 @@ export class IntegrationService {
     });
 
     const results = await Promise.allSettled(
-      tokens.map((token) => this.fetchExternalItems(token, limit)),
+      tokens.map((token) => this.fetchExternalItems(token, limit, options?.since)),
     );
-    const externalItems = results
-      .filter((result) => result.status === 'fulfilled')
-      .flatMap((result) => result.value);
 
-    const items = mapExternalItemsToReportItems(externalItems).sort((a, b) => {
-      const aUpdatedAt =
-        typeof a.metadata?.updatedAt === 'string' ? a.metadata.updatedAt : '';
-      const bUpdatedAt =
-        typeof b.metadata?.updatedAt === 'string' ? b.metadata.updatedAt : '';
+    const workItems = results.flatMap((result, index) => {
+      if (result.status === 'fulfilled') {
+        return result.value;
+      }
 
-      return bUpdatedAt.localeCompare(aUpdatedAt);
+      const token = tokens[index];
+      const reason = result.reason;
+      this.logger.warn(
+        `Integration fetch failed provider=${token.provider} user=${userId} baseUrl=${token.baseUrl ?? 'none'} reason=${
+          reason instanceof Error ? reason.message : String(reason)
+        }`,
+      );
+      return [] as WorkItem[];
     });
+
+    const items = this.mergeWorkItems(workItems, limit);
+
+    this.logger.debug(
+      `Integration preview fetched providers=${tokens.length}, rawItems=${workItems.length}, mappedItems=${items.length}, since=${options?.since ?? 'none'}`,
+    );
 
     return { items };
   }
 
-  private fetchExternalItems(token: IntegrationToken, limit: number) {
+  private mergeWorkItems(items: WorkItem[], limit: number) {
+    const byKey = new Map<string, WorkItem>();
+
+    for (const item of items) {
+      byKey.set(`${item.source}:${item.type}:${item.externalId}`, item);
+    }
+
+    return [...byKey.values()]
+      .sort((a, b) =>
+        (b.activityUpdatedAt ?? '').localeCompare(a.activityUpdatedAt ?? ''),
+      )
+      .slice(0, limit);
+  }
+
+  private fetchExternalItems(token: IntegrationToken, limit: number, since?: Date): Promise<WorkItem[]> {
     return token.provider === ReportItemSource.JIRA
-      ? this.jiraClient.fetchRecentItems({ ...token, limit })
+      ? this.jiraClient.fetchRecentItems({ ...token, limit, since })
       : token.provider === ReportItemSource.GITLAB
-        ? this.gitLabClient.fetchRecentItems({ ...token, limit })
-        : this.gitHubClient.fetchRecentItems({ ...token, limit });
+        ? this.gitLabClient.fetchRecentItems({ ...token, limit, since })
+        : this.gitHubClient.fetchRecentItems({ ...token, limit, since });
   }
 
   private async validateStoredToken(
@@ -235,6 +272,22 @@ export class IntegrationService {
         : this.gitHubClient.validateToken(token);
   }
 
+  private normalizeStoredTokenInput(dto: StoreIntegrationTokenDto) {
+    const token = dto.token?.trim() ?? '';
+    const baseUrl = dto.baseUrl?.trim().replace(/\/+$/, '') || undefined;
+    const accountEmail = dto.accountEmail?.trim() || undefined;
+
+    if (!token) {
+      throw new BadRequestException('Integration token is required');
+    }
+
+    return {
+      token,
+      baseUrl,
+      accountEmail,
+    };
+  }
+
   private toMissingStatus(
     provider: ReportItemSource,
     message = 'Integration is not connected',
@@ -245,6 +298,42 @@ export class IntegrationService {
       status: 'missing',
       message,
     };
+  }
+
+  private statusFromStoredToken(token: IntegrationToken): IntegrationStatusDto {
+    const status = this.normalizeConnectionStatus(token.connectionStatus);
+
+    return this.toStatusDto(token, {
+      connected: status === 'connected',
+      status,
+      message:
+        token.connectionMessage ??
+        (status === 'missing'
+          ? 'Token saved. Use Check connection to validate it.'
+          : 'Integration is not connected'),
+    });
+  }
+
+  private normalizeConnectionStatus(value: string | null | undefined): IntegrationStatus {
+    if (value === 'connected' || value === 'error') {
+      return value;
+    }
+
+    return 'missing';
+  }
+
+  private async persistConnectionStatus(
+    tokenId: string,
+    status: IntegrationStatusDto,
+  ) {
+    await this.prisma.integrationToken.update({
+      where: { id: tokenId },
+      data: {
+        connectionStatus: status.status,
+        connectionMessage: status.message,
+        connectionCheckedAt: new Date(),
+      },
+    });
   }
 
   private toStatusDto(
@@ -272,18 +361,28 @@ export class IntegrationService {
     if (error instanceof HttpException) {
       const response = error.getResponse();
 
-      if (
-        typeof response === 'object' &&
-        response !== null &&
-        'status' in response
-      ) {
-        return 'Token check failed. Reconnect this integration.';
+      if (typeof response === 'string') {
+        return this.formatValidationMessage(response);
       }
 
-      return error.message;
+      if (typeof response === 'object' && response !== null) {
+        const { message, details } = response as {
+          message?: string;
+          details?: string;
+        };
+        const summary =
+          message ??
+          (details && !this.looksLikeHtml(details) ? details : undefined);
+
+        if (summary) {
+          return this.formatValidationMessage(summary);
+        }
+      }
+
+      return 'Validation failed. Verify the token, base URL, and account email.';
     }
 
-    return 'Token check failed. Reconnect this integration.';
+    return 'Validation failed. Verify the token, base URL, and account email.';
   }
 
   private redactToken<T extends { token: string }>(
@@ -301,5 +400,21 @@ export class IntegrationService {
 
   private getTokenPreview(token: string) {
     return token.length > 4 ? `...${token.slice(-4)}` : 'configured';
+  }
+
+  private formatValidationMessage(summary: string) {
+    const trimmed = summary.trim();
+
+    if (trimmed.toLowerCase().startsWith('validation failed')) {
+      return trimmed;
+    }
+
+    return `Validation failed: ${trimmed}`;
+  }
+
+  private looksLikeHtml(value: string) {
+    const trimmed = value.trim().toLowerCase();
+
+    return trimmed.startsWith('<!doctype html') || trimmed.startsWith('<html');
   }
 }

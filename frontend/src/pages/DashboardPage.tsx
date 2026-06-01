@@ -1,14 +1,103 @@
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { formatReportPeriod, listReports, ReportDto } from '../api/reports';
+import { useAuth } from '../contexts/AuthContext';
+import { useIntegrations } from '../contexts/IntegrationsContext';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Panel } from '../components/ui/Panel';
-import { recentReports, reportItems } from '../data/mockData';
+import {
+  formatWorkItemActivity,
+  workItemTypeLabels,
+  WorkItem,
+} from '../types/work-item';
 
 export function DashboardPage() {
+  const { accessToken } = useAuth();
+  const { connectedCount } = useIntegrations();
+  const [reports, setReports] = useState<ReportDto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!accessToken) {
+      setReports([]);
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadReports() {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const nextReports = await listReports(accessToken);
+        if (!cancelled) {
+          setReports(nextReports);
+        }
+      } catch (loadError) {
+        if (!cancelled) {
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : 'Could not load reports.',
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadReports();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken]);
+
+  const latestReport = reports[0];
+
+  const draftCount = useMemo(
+    () => reports.filter((report) => report.status === 'DRAFT').length,
+    [reports],
+  );
+
+  const storedItemCount = useMemo(
+    () => reports.reduce((total, report) => total + report.workItems.length, 0),
+    [reports],
+  );
+
+  const latestWorkItems = useMemo(() => {
+    const items: Array<WorkItem & { reportId: string; reportStatus: string }> =
+      [];
+
+    for (const report of reports) {
+      for (const item of report.workItems) {
+        items.push({
+          ...item,
+          reportId: report.id,
+          reportStatus: report.status,
+        });
+      }
+    }
+
+    return items
+      .sort(
+        (a, b) =>
+          new Date(b.activityUpdatedAt ?? 0).getTime() -
+          new Date(a.activityUpdatedAt ?? 0).getTime(),
+      )
+      .slice(0, 10);
+  }, [reports]);
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Dashboard"
-        description="Overview of recent KUP50 reporting activity and draft progress."
+        description="Stored report snapshots only — no live integration calls."
         actions={
           <Link
             to="/report/new"
@@ -18,58 +107,120 @@ export function DashboardPage() {
           </Link>
         }
       />
+
+      {error ? (
+        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-300">
+          {error}
+        </p>
+      ) : null}
+
       <div className="grid gap-4 md:grid-cols-3">
-        {[
-          ['Open draft', '1'],
-          ['Preview items', '14'],
-          ['Connected sources', '2'],
-        ].map(([label, value]) => (
-          <Panel key={label}>
-            <p className="text-sm text-ink-muted dark:text-slate-400">
-              {label}
-            </p>
-            <p className="mt-3 text-3xl font-semibold text-ink dark:text-white">
-              {value}
-            </p>
-          </Panel>
-        ))}
+        <Panel>
+          <p className="text-sm text-ink-muted dark:text-slate-400">Open drafts</p>
+          <p className="mt-3 text-3xl font-semibold text-ink dark:text-white">
+            {loading ? '…' : draftCount}
+          </p>
+        </Panel>
+        <Panel>
+          <p className="text-sm text-ink-muted dark:text-slate-400">
+            Stored work items
+          </p>
+          <p className="mt-3 text-3xl font-semibold text-ink dark:text-white">
+            {loading ? '…' : storedItemCount}
+          </p>
+        </Panel>
+        <Panel>
+          <p className="text-sm text-ink-muted dark:text-slate-400">
+            Connected sources
+          </p>
+          <p className="mt-3 text-3xl font-semibold text-ink dark:text-white">
+            {connectedCount}
+          </p>
+        </Panel>
       </div>
+
+      {latestReport ? (
+        <Panel>
+          <h2 className="text-base font-semibold text-ink dark:text-white">
+            Latest report snapshot
+          </h2>
+          <p className="mt-1 text-sm text-ink-muted dark:text-slate-400">
+            {formatReportPeriod(latestReport)} · {latestReport.status} ·{' '}
+            {latestReport.workItems.length} items
+          </p>
+          <Link
+            to={`/report/${latestReport.id}`}
+            className="mt-3 inline-block text-sm font-medium text-emerald-700 dark:text-emerald-300"
+          >
+            View report
+          </Link>
+        </Panel>
+      ) : null}
+
       <div className="grid gap-6 lg:grid-cols-5">
         <Panel className="lg:col-span-3">
           <h2 className="text-base font-semibold text-ink dark:text-white">
             Recent reports
           </h2>
-          <div className="mt-4 divide-y divide-slate-200 dark:divide-slate-800">
-            {recentReports.map((report) => (
-              <Link
-                key={report.id}
-                to="/report/1"
-                className="grid grid-cols-3 gap-3 py-3 text-sm hover:text-emerald-700 dark:hover:text-emerald-300"
-              >
-                <span>{report.period}</span>
-                <span>{report.status}</span>
-                <span className="text-right">{report.items} items</span>
-              </Link>
-            ))}
-          </div>
+          {loading ? (
+            <p className="mt-4 text-sm text-ink-muted dark:text-slate-400">
+              Loading reports…
+            </p>
+          ) : reports.length === 0 ? (
+            <p className="mt-4 text-sm text-ink-muted dark:text-slate-400">
+              No reports yet.{' '}
+              <Link to="/report/new" className="text-emerald-700 dark:text-emerald-300">
+                Create a report
+              </Link>{' '}
+              and save a work snapshot.
+            </p>
+          ) : (
+            <div className="mt-4 divide-y divide-slate-200 dark:divide-slate-800">
+              {reports.map((report) => (
+                <Link
+                  key={report.id}
+                  to={`/report/${report.id}`}
+                  className="grid grid-cols-3 gap-3 py-3 text-sm hover:text-emerald-700 dark:hover:text-emerald-300"
+                >
+                  <span>{formatReportPeriod(report)}</span>
+                  <span>{report.status}</span>
+                  <span className="text-right">
+                    {report.workItems.length} items
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
         </Panel>
         <Panel className="lg:col-span-2">
           <h2 className="text-base font-semibold text-ink dark:text-white">
-            Latest work items
+            Latest stored work items
           </h2>
-          <div className="mt-4 space-y-3">
-            {reportItems.map((item) => (
-              <div
-                key={item.title}
-                className="rounded-md bg-slate-50 p-3 dark:bg-slate-950"
-              >
-                <p className="text-sm font-medium">{item.title}</p>
-                <p className="mt-1 text-xs text-ink-muted dark:text-slate-400">
-                  {item.source} · {item.type} · {item.status}
-                </p>
-              </div>
-            ))}
-          </div>
+          {loading ? (
+            <p className="mt-4 text-sm text-ink-muted dark:text-slate-400">
+              Loading items…
+            </p>
+          ) : latestWorkItems.length === 0 ? (
+            <p className="mt-4 text-sm text-ink-muted dark:text-slate-400">
+              Saved work items from reports will appear here.
+            </p>
+          ) : (
+            <div className="mt-4 space-y-3">
+              {latestWorkItems.map((item) => (
+                <Link
+                  key={`${item.reportId}-${item.id ?? item.externalId}`}
+                  to={`/report/${item.reportId}`}
+                  className="block rounded-md bg-slate-50 p-3 hover:bg-slate-100 dark:bg-slate-950 dark:hover:bg-slate-900"
+                >
+                  <p className="text-sm font-medium">{item.title}</p>
+                  <p className="mt-1 text-xs text-ink-muted dark:text-slate-400">
+                    {workItemTypeLabels[item.type]} · {item.source} ·{' '}
+                    {formatWorkItemActivity(item)} · {item.reportStatus}
+                  </p>
+                </Link>
+              ))}
+            </div>
+          )}
         </Panel>
       </div>
     </div>

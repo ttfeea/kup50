@@ -60,6 +60,23 @@ export class IntegrationController {
     @Query() query: FetchIntegrationItemsDto,
   ) {
     const provider = this.integrationService.parseProvider(providerParam);
-    return this.integrationService.fetchItems(user.id, provider, query.limit);
+    return this.integrationService.fetchItems(user.id, provider, {
+      limit: query.limit,
+    });
+  }
+
+  @Get('preview')
+  previewItems(
+    @CurrentUser() user: SafeUser,
+    @Query() query: FetchIntegrationItemsDto,
+  ) {
+    const since = query.periodDays
+      ? new Date(Date.now() - query.periodDays * 24 * 60 * 60 * 1000)
+      : undefined;
+
+    return this.integrationService.fetchConfiguredItems(user.id, {
+      limit: query.limit,
+      since,
+    });
   }
 }

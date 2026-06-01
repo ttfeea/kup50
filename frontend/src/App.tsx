@@ -6,7 +6,6 @@ import { LoginPage } from './pages/LoginPage';
 import { NewReportPage } from './pages/NewReportPage';
 import { ReportDetailPage } from './pages/ReportDetailPage';
 import { SettingsPage } from './pages/SettingsPage';
-import { SetupPage } from './pages/SetupPage';
 
 export function App() {
   return (
@@ -14,10 +13,10 @@ export function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route element={<RequireAuth />}>
         <Route element={<AppShell />}>
-          <Route path="/setup" element={<SetupPage />} />
+          <Route path="/setup" element={<Navigate to="/settings" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/report/new" element={<NewReportPage />} />
-          <Route path="/report/1" element={<ReportDetailPage />} />
+          <Route path="/report/:id" element={<ReportDetailPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>
       </Route>

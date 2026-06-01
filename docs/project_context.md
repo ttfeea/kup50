@@ -1,216 +1,159 @@
-# KUP50_app — Project Context
+🧠 System Overview
 
-## 🧠 Overview
+KUP50_app is an internal enterprise work activity reporting system.
 
-KUP50_app is an internal enterprise backend system designed to generate monthly employee activity reports based on development work tracked in external tools such as Jira and GitLab.
+It aggregates developer activity from external tools and manual input, normalizes it into a unified structure, and generates monthly reports.
 
-The system is being built as a REST API using:
+Tech Stack
+NestJS (backend)
+Prisma ORM
+PostgreSQL
+JWT authentication
+React (planned frontend)
+🎯 Core Concept
 
-- NestJS (backend framework)
-- Prisma ORM
-- PostgreSQL database
-- JWT authentication
+The system is built around a single abstraction:
 
-The long-term goal is to support a web frontend (React) and eventually replace manual Excel-based reporting with automated, database-driven reports.
+WorkItem = unified representation of all developer activity
 
----
+Everything in the system must be converted into WorkItems before being used in reports.
 
-## 🎯 Core Purpose
+🧱 Unified Data Model (CRITICAL)
+WorkItem (CANONICAL MODEL)
 
-The application generates structured “creative work reports” for employees based on:
+All external and manual data must be normalized into this structure:
 
-- Jira issues
-- GitLab merge requests / commits
+id
+source: GITHUB | GITLAB | JIRA | MANUAL
+type: COMMIT | PR | MR | ISSUE | TASK | NOTE
+title
+url (optional)
+createdAt
+updatedAt
+metadata (JSON, provider-specific raw data)
+Rules:
+WorkItem is the ONLY valid business model for work data
+All integrations MUST map into WorkItem
+No feature should depend directly on provider-specific types (GitHubIssue, GitLabMR, etc.)
+👤 USER
 
-Reports should be:
-- minimally manual (low user effort)
-- generated quickly
-- based on pre-connected integrations
-- stored for future reference and export (Excel replacement)
-
----
-
-## 🏗️ Current Architecture
-
-### USER
-
-Represents an employee in the system.
+Represents an employee.
 
 Fields:
-- id
-- email
-- password (temporary MVP, may be replaced later with SSO or external auth)
-- fullname
-- position
-- department
-- managerName
-- role (employee / manager)
-- createdAt
-
+id
+email
+password (MVP only)
+fullname
+position
+department
+managerName
+role (employee | manager)
+createdAt
 Relations:
-- has many Reports
+has many Reports
+📊 REPORT
 
----
-
-### REPORT
-
-Represents a monthly reporting container.
+Represents a monthly snapshot of work activity.
 
 Fields:
-- id
-- periodStart (auto-generated)
-- periodEnd (auto-generated)
-- status (DRAFT | SUBMITTED)
-- userId (FK → User)
-- createdAt
-- updatedAt
+id
+periodStart
+periodEnd
+status (DRAFT | SUBMITTED)
+userId
+createdAt
+updatedAt
+Rules:
+Report contains SNAPSHOTS of WorkItems
+Reports must NOT fetch live external data after creation
+Reports are static once generated
+📦 REPORT_ITEM (LEGACY / COMPATIBILITY ONLY)
 
-Relations:
-- belongs to User
-- has many ReportItems
-
-⚠️ IMPORTANT:
-Employee profile data DOES NOT belong in Report anymore.
-
-Removed legacy fields:
-- employeeName
-- position
-- department
-- managerName
-
----
-
-### REPORT_ITEM
-
-Represents a single unit of work imported from external systems.
-
-Fields:
-- id
-- reportId (FK → Report)
-- source (JIRA | GITLAB)
-- externalId
-- title
-- url (optional)
-- type (optional)
-- metadata (JSON)
-- createdAt
-- updatedAt
+⚠️ This model exists only for backward compatibility.
 
 Purpose:
-- normalized representation of Jira/GitLab work items
+persists WorkItems inside a report snapshot
+Rules:
+DO NOT extend this model
+DO NOT base new logic on it
+It is being phased out conceptually in favor of WorkItem
+🔁 BUSINESS FLOW (CURRENT SYSTEM)
+1. Authentication
+User logs in using JWT
+2. Report Creation
+Backend creates a new Report
+Automatically sets periodStart and periodEnd
+3. WorkItem Collection
 
----
+System collects WorkItems from:
 
-## 🔁 Current Business Flow
+GitHub (events, commits, PRs)
+GitLab (events, commits, MRs, issues)
+Jira (issues/tasks)
+Manual user input
+4. Normalization
+All external data is converted into WorkItem format
+5. Selection
+User selects WorkItems for the report
+6. Snapshot Creation
+Selected WorkItems are saved into ReportItems (DB snapshot)
+7. Report Finalization
+Report is submitted/exported (Excel replacement)
+🔌 INTEGRATION SYSTEM
+Purpose
 
-1. User logs in (JWT authentication)
-2. User creates a Report (backend auto-calculates periodStart/periodEnd)
-3. System connects to Jira/GitLab (future feature, partially implemented)
-4. Work items are fetched (Jira issues, GitLab MRs/commits)
-5. User selects relevant items
-6. Selected items are stored as ReportItems
-7. Report is submitted/exported later (Excel replacement)
+Connect external services to fetch WorkItems.
 
----
+Providers:
+GitHub
+GitLab
+Jira
+Responsibilities:
+Store tokens per user
+Validate tokens
+Fetch external activity
+Convert to WorkItem format
+Future Requirement:
+Must support commits + events (not just PRs/issues)
+✍️ MANUAL WORK ITEMS
 
-## ⚠️ Current Project State
+Users can manually create WorkItems.
 
-### Backend status:
-- Mid-refactor phase
-- Prisma schema has been heavily updated
-- Some TypeScript mismatches may still exist
-- Legacy fields may still appear in older service logic (must be removed)
+Rules:
+Treated exactly like integration WorkItems
+Must follow WorkItem schema
+Can be added during report creation
+⚠️ CURRENT SYSTEM STATE
+Backend is mid-refactor
+Schema is evolving toward WorkItem model
+Some legacy ReportItem logic still exists
+Integration layer is partially implemented
+Some DTOs may still reference old structures
+🚨 CRITICAL DEVELOPMENT RULES
+1. Prisma is source of truth
+Schema defines system structure
+Always migrate after changes
+2. WorkItem is the ONLY valid business model
+No provider-specific logic in business services
+No GitHub/GitLab/Jira types in core logic
+3. Reports are snapshots only
+No live API calls when viewing reports
+4. Stability first
 
-### Known risks:
-- schema/code mismatch during refactors
-- outdated DTOs referencing removed fields
-- Prisma client regeneration issues if schema changes are incomplete
+Before adding features:
 
----
-
-## 🚨 Important Rules for Development
-
-### 1. Schema consistency is critical
-- Prisma schema is the source of truth
-- Every schema change MUST be followed by migration
-
-### 2. No duplicate employee data in Report
-- Employee profile data belongs ONLY in User
-- Report should reference User only
-
-### 3. ReportItems are the canonical work structure
-- creativeWorkItems JSON is legacy and should NOT be used for logic
-
-### 4. Keep backend stable before adding features
-- No new features unless build is clean
-- Always ensure:
-  - `npm run build` passes
-  - no TypeScript errors
-  - Prisma client is in sync
-
----
-
-## 🔐 Authentication Model
-
-- JWT-based authentication
-- Temporary password-based login (MVP stage)
-- Future improvements may include:
-  - SSO integration
-  - company-provided user provisioning
-  - reduced password dependency
-
----
-
-## 🔌 Future Feature Direction (NOT IMPLEMENTED YET)
-
-### Integration Layer (next planned phase)
-
-Goal:
-Persist Jira and GitLab access so users do NOT need to reconnect every session.
-
-Planned concept:
-- IntegrationToken model
-- stored per user
-- provider: JIRA / GITLAB
-- secure token storage
-- persistent connection
-
----
-
-### Report Automation (later phase)
-
-- automatic fetching of Jira/GitLab data
-- one-click report generation
-- AI-assisted classification (optional future feature)
-
----
-
-### Frontend (future)
-
-- React-based dashboard
-- report builder UI
-- integration settings page
-- employee profile management
-
----
-
-## 🧭 Development Priority Order
-
-1. Stabilize backend (fix all errors)
-2. Ensure Prisma + TypeScript consistency
-3. Implement IntegrationToken system
-4. Improve report generation flow
-5. Build frontend
-6. Optional AI enhancements
-
----
-
-## 💡 Key Philosophy
-
-It is an internal enterprise reporting platform focused on:
-- automation
-- minimal user friction
-- structured work tracking
-- integration-driven data collection
-
-Keep architecture clean, incremental, and stable.
+npm run build must pass
+Prisma must be valid
+No TypeScript errors allowed
+🔐 AUTH SYSTEM
+JWT-based authentication
+MVP uses email + password login
+Future upgrades may include SSO
+🚀 DEVELOPMENT PRIORITY
+Stabilize backend
+Fully align schema with WorkItem model
+Expand integrations (commits + events)
+Implement manual WorkItems
+Improve report generation flow
+Build frontend dashboard
+Add automation / AI features

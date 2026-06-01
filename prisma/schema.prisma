@@ -21,6 +21,17 @@ enum ReportItemSource {
   JIRA
   GITLAB
   GITHUB
+  MANUAL
+}
+
+enum WorkItemType {
+  COMMIT
+  PR
+  MR
+  ISSUE
+  TASK
+  NOTE
+  CUSTOM
 }
 
 model User {
@@ -33,6 +44,7 @@ model User {
   position  String?
   department String?
   managerName String?
+  employeeId String? @map("employee_id")
 
   reports Report[]
   integrationTokens IntegrationToken[]
@@ -47,6 +59,9 @@ model IntegrationToken {
   token        String
   baseUrl      String?          @map("base_url")
   accountEmail String?          @map("account_email")
+  connectionStatus String       @default("missing") @map("connection_status")
+  connectionMessage String?     @map("connection_message")
+  connectionCheckedAt DateTime? @map("connection_checked_at")
   createdAt    DateTime         @default(now()) @map("created_at")
   updatedAt    DateTime         @updatedAt @map("updated_at")
 
@@ -81,7 +96,7 @@ model ReportItem {
   externalId String           @map("external_id")
   title      String
   url        String?
-  type       String?
+  workType   WorkItemType     @map("work_type")
   metadata   Json?
   createdAt  DateTime         @default(now()) @map("created_at")
   updatedAt  DateTime         @updatedAt @map("updated_at")

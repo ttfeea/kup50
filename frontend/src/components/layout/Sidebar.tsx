@@ -1,18 +1,9 @@
-import {
-  ClipboardList,
-  FilePlus2,
-  Home,
-  Settings,
-  UserRoundCog,
-  X,
-} from 'lucide-react';
+import { FilePlus2, Home, Settings, X } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
   { name: 'New report', href: '/report/new', icon: FilePlus2 },
-  { name: 'Report preview', href: '/report/1', icon: ClipboardList },
-  { name: 'Setup', href: '/setup', icon: UserRoundCog },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
@@ -31,7 +22,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         onClick={onClose}
       />
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-slate-200 bg-white transition-transform duration-200 lg:translate-x-0 dark:border-slate-800 dark:bg-slate-950 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-slate-200 bg-white transition-transform duration-200 lg:translate-x-0 dark:border-slate-800 dark:bg-slate-950 ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >

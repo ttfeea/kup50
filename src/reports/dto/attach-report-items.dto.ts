@@ -1,7 +1,8 @@
-import { ReportItemSource } from '@prisma/client';
+import { ReportItemSource, WorkItemType } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsDateString,
   IsEnum,
   IsObject,
   IsOptional,
@@ -14,6 +15,9 @@ import {
 export class AttachReportItemDto {
   @IsEnum(ReportItemSource)
   source: ReportItemSource;
+
+  @IsEnum(WorkItemType)
+  type: WorkItemType;
 
   @IsString()
   @MinLength(1)
@@ -28,8 +32,12 @@ export class AttachReportItemDto {
   url?: string;
 
   @IsOptional()
-  @IsString()
-  type?: string;
+  @IsDateString()
+  activityCreatedAt?: string;
+
+  @IsOptional()
+  @IsDateString()
+  activityUpdatedAt?: string;
 
   @IsOptional()
   @IsObject()

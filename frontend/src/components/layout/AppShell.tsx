@@ -10,7 +10,7 @@ export function AppShell() {
   return (
     <div className="min-h-screen bg-surface text-ink dark:bg-surface-dark dark:text-slate-100">
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="lg:pl-72">
+      <div className="lg:pl-64">
         <TopBar
           menuButton={
             <button

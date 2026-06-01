@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -13,6 +14,7 @@ import { SafeUser } from '../common/utils/user.mapper';
 import { FetchIntegrationItemsDto } from '../integrations/dto/fetch-integration-items.dto';
 import { CreateReportDto } from './dto/create-report.dto';
 import { AttachReportItemsDto } from './dto/attach-report-items.dto';
+import { CreateManualWorkItemDto } from './dto/create-manual-work-item.dto';
 import { ReportsService } from './reports.service';
 
 @Controller('reports')
@@ -35,13 +37,23 @@ export class ReportsController {
     return this.reportsService.getReportWithItems(user.id, id);
   }
 
+  @Delete(':id')
+  deleteDraft(@CurrentUser() user: SafeUser, @Param('id') id: string) {
+    return this.reportsService.deleteDraft(user.id, id);
+  }
+
   @Get(':id/fetch-items')
   fetchItems(
     @CurrentUser() user: SafeUser,
     @Param('id') id: string,
     @Query() query: FetchIntegrationItemsDto,
   ) {
-    return this.reportsService.fetchPreviewItems(user.id, id, query.limit);
+    return this.reportsService.fetchPreviewItems(
+      user.id,
+      id,
+      query.limit,
+      query.periodDays,
+    );
   }
 
   @Post(':id/items')
@@ -51,5 +63,19 @@ export class ReportsController {
     @Body() dto: AttachReportItemsDto,
   ) {
     return this.reportsService.attachReportItems(user.id, id, dto.items);
+  }
+
+  @Post(':id/manual-items')
+  addManualItem(
+    @CurrentUser() user: SafeUser,
+    @Param('id') id: string,
+    @Body() dto: CreateManualWorkItemDto,
+  ) {
+    return this.reportsService.addManualWorkItem(user.id, id, dto);
+  }
+
+  @Post(':id/confirm')
+  confirm(@CurrentUser() user: SafeUser, @Param('id') id: string) {
+    return this.reportsService.confirmReport(user.id, id);
   }
 }

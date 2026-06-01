@@ -5,10 +5,11 @@ import {
   disconnectIntegration,
   IntegrationProvider,
   IntegrationStatusDto,
-  listIntegrations,
   saveIntegrationToken,
 } from '../../api/integrations';
 import { useAuth } from '../../contexts/AuthContext';
+import { useIntegrations } from '../../contexts/IntegrationsContext';
+import { integrationGuides } from '../../data/integrationGuides';
 import { Panel } from '../ui/Panel';
 
 const providers: Array<{ id: IntegrationProvider; label: string }> = [
@@ -36,9 +37,21 @@ const statusStyles = {
   missing: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
 };
 
-export function IntegrationSettingsPanel() {
+type IntegrationSettingsPanelProps = {
+  className?: string;
+};
+
+export function IntegrationSettingsPanel({
+  className,
+}: IntegrationSettingsPanelProps) {
   const { accessToken } = useAuth();
-  const [integrations, setIntegrations] = useState<IntegrationStatusDto[]>([]);
+  const {
+    integrations,
+    loading,
+    error: integrationsError,
+    refreshIntegrations,
+    upsertIntegration,
+  } = useIntegrations();
   const [forms, setForms] = useState<Record<IntegrationProvider, ProviderForm>>(
     {
       JIRA: emptyForm,
@@ -46,12 +59,12 @@ export function IntegrationSettingsPanel() {
       GITHUB: emptyForm,
     },
   );
-  const [loading, setLoading] = useState(true);
   const [busyProvider, setBusyProvider] = useState<IntegrationProvider | null>(
     null,
   );
   const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const error = actionError ?? integrationsError;
 
   const integrationsByProvider = useMemo(
     () =>
@@ -62,33 +75,8 @@ export function IntegrationSettingsPanel() {
   );
 
   useEffect(() => {
-    void loadIntegrations();
-  }, [accessToken]);
-
-  async function loadIntegrations() {
-    if (!accessToken) {
-      setLoading(false);
-      setError('Sign in to manage integrations.');
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const nextIntegrations = await listIntegrations(accessToken);
-      setIntegrations(nextIntegrations);
-      setForms((current) => hydrateForms(current, nextIntegrations));
-    } catch (loadError) {
-      setError(
-        loadError instanceof Error
-          ? loadError.message
-          : 'Could not load integrations.',
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
+    setForms((current) => hydrateForms(current, integrations));
+  }, [integrations]);
 
   function updateForm(
     provider: IntegrationProvider,
@@ -111,23 +99,27 @@ export function IntegrationSettingsPanel() {
     event.preventDefault();
 
     if (!accessToken) {
-      setError('Sign in to manage integrations.');
+      setActionError('Sign in to manage integrations.');
       return;
     }
 
     setBusyProvider(provider);
     setMessage(null);
-    setError(null);
+    setActionError(null);
 
     try {
       const form = forms[provider];
+      const trimmedToken = form.token.trim();
+      const trimmedBaseUrl = form.baseUrl.trim();
+      const trimmedAccountEmail = form.accountEmail.trim();
+
       const saved = await saveIntegrationToken(accessToken, provider, {
-        token: form.token,
-        baseUrl: form.baseUrl || undefined,
-        accountEmail: form.accountEmail || undefined,
+        token: trimmedToken,
+        baseUrl: trimmedBaseUrl || undefined,
+        accountEmail: trimmedAccountEmail || undefined,
       });
 
-      mergeIntegration(saved);
+      upsertIntegration(saved);
       setForms((current) => ({
         ...current,
         [provider]: {
@@ -135,9 +127,13 @@ export function IntegrationSettingsPanel() {
           token: '',
         },
       }));
-      setMessage(`${providerLabel(provider)} token saved.`);
+
+      setMessage(
+        `${providerLabel(provider)} token saved. Use Check connection to validate it.`,
+      );
+      await refreshIntegrations();
     } catch (saveError) {
-      setError(
+      setActionError(
         saveError instanceof Error
           ? saveError.message
           : 'Could not save token.',
@@ -149,20 +145,21 @@ export function IntegrationSettingsPanel() {
 
   async function handleCheck(provider: IntegrationProvider) {
     if (!accessToken) {
-      setError('Sign in to manage integrations.');
+      setActionError('Sign in to manage integrations.');
       return;
     }
 
     setBusyProvider(provider);
     setMessage(null);
-    setError(null);
+    setActionError(null);
 
     try {
       const result = await checkIntegration(accessToken, provider);
+      upsertIntegration(result);
       setMessage(result.message);
-      await loadIntegrations();
+      await refreshIntegrations();
     } catch (checkError) {
-      setError(
+      setActionError(
         checkError instanceof Error
           ? checkError.message
           : 'Could not check connection.',
@@ -174,20 +171,21 @@ export function IntegrationSettingsPanel() {
 
   async function handleDisconnect(provider: IntegrationProvider) {
     if (!accessToken) {
-      setError('Sign in to manage integrations.');
+      setActionError('Sign in to manage integrations.');
       return;
     }
 
     setBusyProvider(provider);
     setMessage(null);
-    setError(null);
+    setActionError(null);
 
     try {
       const disconnected = await disconnectIntegration(accessToken, provider);
-      mergeIntegration(disconnected);
+      upsertIntegration(disconnected);
+      await refreshIntegrations();
       setMessage(`${providerLabel(provider)} disconnected.`);
     } catch (disconnectError) {
-      setError(
+      setActionError(
         disconnectError instanceof Error
           ? disconnectError.message
           : 'Could not disconnect integration.',
@@ -197,37 +195,23 @@ export function IntegrationSettingsPanel() {
     }
   }
 
-  function mergeIntegration(nextIntegration: IntegrationStatusDto) {
-    setIntegrations((current) => [
-      ...current.filter(
-        (integration) => integration.provider !== nextIntegration.provider,
-      ),
-      nextIntegration,
-    ]);
-    setForms((current) =>
-      hydrateForms(current, [
-        ...integrations.filter(
-          (integration) => integration.provider !== nextIntegration.provider,
-        ),
-        nextIntegration,
-      ]),
-    );
-  }
-
   return (
-    <Panel>
+    <Panel className={className}>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-base font-semibold text-ink dark:text-white">
-            Integrations
-          </h2>
+          <h3 className="text-base font-semibold text-ink dark:text-white">
+            Work sources
+          </h3>
           <p className="mt-1 text-sm text-ink-muted dark:text-slate-400">
-            Store personal access tokens for manual work-item fetches.
+            Save a token, then use Check connection to verify. See each provider
+            for the exact URL and scopes.
           </p>
         </div>
         <button
           type="button"
-          onClick={loadIntegrations}
+          onClick={() => {
+            void refreshIntegrations();
+          }}
           disabled={loading}
           className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900"
         >
@@ -253,11 +237,14 @@ export function IntegrationSettingsPanel() {
           const form = forms[provider.id];
           const status = integration?.status ?? 'missing';
           const isBusy = busyProvider === provider.id;
+          const guide = integrationGuides[provider.id];
 
           return (
             <form
               key={provider.id}
-              onSubmit={(event) => handleSave(event, provider.id)}
+              onSubmit={(event) => {
+                void handleSave(event, provider.id);
+              }}
               className="rounded-md border border-slate-200 p-4 dark:border-slate-800"
             >
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -276,11 +263,14 @@ export function IntegrationSettingsPanel() {
                       Token {integration.tokenPreview}
                     </p>
                   ) : null}
+                  <IntegrationGuideHint guide={guide} />
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
-                    onClick={() => handleCheck(provider.id)}
+                    onClick={() => {
+                      void handleCheck(provider.id);
+                    }}
                     disabled={isBusy || loading}
                     className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900"
                   >
@@ -289,7 +279,9 @@ export function IntegrationSettingsPanel() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleDisconnect(provider.id)}
+                    onClick={() => {
+                      void handleDisconnect(provider.id);
+                    }}
                     disabled={isBusy || loading || status === 'missing'}
                     className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900"
                   >
@@ -327,25 +319,29 @@ export function IntegrationSettingsPanel() {
                     className="mt-1 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
                   />
                 </label>
-                <label className="block">
-                  <span className="text-sm text-ink-muted dark:text-slate-400">
-                    Account email
-                  </span>
-                  <input
-                    value={form.accountEmail}
-                    onChange={(event) =>
-                      updateForm(
-                        provider.id,
-                        'accountEmail',
-                        event.target.value,
-                      )
-                    }
-                    placeholder={
-                      provider.id === 'JIRA' ? 'Required for Jira' : 'Optional'
-                    }
-                    className="mt-1 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
-                  />
-                </label>
+                {guide.accountEmail?.required ? (
+                  <label className="block">
+                    <span className="text-sm text-ink-muted dark:text-slate-400">
+                      Account email
+                      <span className="text-red-600 dark:text-red-400">
+                        {' '}
+                        (required)
+                      </span>
+                    </span>
+                    <input
+                      value={form.accountEmail}
+                      onChange={(event) =>
+                        updateForm(
+                          provider.id,
+                          'accountEmail',
+                          event.target.value,
+                        )
+                      }
+                      placeholder="you@company.com"
+                      className="mt-1 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
+                    />
+                  </label>
+                ) : null}
               </div>
               <button
                 type="submit"
@@ -390,13 +386,56 @@ function providerLabel(provider: IntegrationProvider) {
 }
 
 function baseUrlPlaceholder(provider: IntegrationProvider) {
-  if (provider === 'JIRA') {
-    return 'https://company.atlassian.net';
-  }
+  return integrationGuides[provider].baseUrl.examples[0] ?? '';
+}
 
-  if (provider === 'GITLAB') {
-    return 'https://gitlab.com';
-  }
-
-  return 'https://api.github.com';
+function IntegrationGuideHint({
+  guide,
+}: {
+  guide: (typeof integrationGuides)[IntegrationProvider];
+}) {
+  return (
+    <div className="mt-3 rounded-md border border-slate-200 bg-slate-50/80 p-3 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-300">
+      <p className="font-medium text-slate-700 dark:text-slate-200">
+        What to paste
+      </p>
+      <ul className="mt-2 list-inside list-disc space-y-1.5">
+        <li>
+          <span className="font-medium">Base URL:</span>{' '}
+          {guide.baseUrl.examples.map((example, index) => (
+            <span key={example}>
+              {index > 0 ? ' or ' : null}
+              <code className="rounded bg-white px-1 py-0.5 font-mono text-[11px] dark:bg-slate-950">
+                {example}
+              </code>
+            </span>
+          ))}
+          . {guide.baseUrl.hint}
+        </li>
+        <li>
+          <span className="font-medium">Token scopes:</span>{' '}
+          {guide.token.scopes.join(', ')}. {guide.token.hint}
+          {guide.token.createUrl ? (
+            <>
+              {' '}
+              <a
+                href={guide.token.createUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium text-emerald-700 underline underline-offset-2 dark:text-emerald-300"
+              >
+                Create token
+              </a>
+            </>
+          ) : null}
+        </li>
+        {guide.accountEmail ? (
+          <li>
+            <span className="font-medium">Account email:</span>{' '}
+            {guide.accountEmail.hint}
+          </li>
+        ) : null}
+      </ul>
+    </div>
+  );
 }
