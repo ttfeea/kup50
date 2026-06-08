@@ -8,7 +8,9 @@ import { IntegrationService } from './integration.service';
 
 describe('IntegrationService', () => {
   let service: IntegrationService;
-  let gitLabClient: { validateToken: jest.Mock };
+  let jiraClient: { validateToken: jest.Mock; fetchRecentItems: jest.Mock };
+  let gitLabClient: { validateToken: jest.Mock; fetchRecentItems: jest.Mock };
+  let gitHubClient: { validateToken: jest.Mock; fetchRecentItems: jest.Mock };
   let prisma: {
     integrationToken: {
       upsert: jest.Mock;
@@ -36,14 +38,25 @@ describe('IntegrationService', () => {
       providers: [
         IntegrationService,
         { provide: PrismaService, useValue: prisma },
-        { provide: JiraClient, useValue: { validateToken: jest.fn() } },
-        { provide: GitLabClient, useValue: { validateToken: jest.fn() } },
-        { provide: GitHubClient, useValue: { validateToken: jest.fn() } },
+        {
+          provide: JiraClient,
+          useValue: { validateToken: jest.fn(), fetchRecentItems: jest.fn() },
+        },
+        {
+          provide: GitLabClient,
+          useValue: { validateToken: jest.fn(), fetchRecentItems: jest.fn() },
+        },
+        {
+          provide: GitHubClient,
+          useValue: { validateToken: jest.fn(), fetchRecentItems: jest.fn() },
+        },
       ],
     }).compile();
 
     service = module.get(IntegrationService);
+    jiraClient = module.get(JiraClient);
     gitLabClient = module.get(GitLabClient);
+    gitHubClient = module.get(GitHubClient);
   });
 
   it('normalizes provider names and trims saved integration values', async () => {
@@ -162,7 +175,10 @@ describe('IntegrationService', () => {
     prisma.integrationToken.findUniqueOrThrow.mockResolvedValue(connectedToken);
     gitLabClient.validateToken.mockResolvedValue(undefined);
 
-    const result = await service.checkConnection('user-1', ReportItemSource.GITLAB);
+    const result = await service.checkConnection(
+      'user-1',
+      ReportItemSource.GITLAB,
+    );
 
     expect(gitLabClient.validateToken).toHaveBeenCalledWith(storedToken);
     expect(result).toEqual(
@@ -173,5 +189,125 @@ describe('IntegrationService', () => {
         message: 'Connected',
       }),
     );
+  });
+
+  it('returns Jira rows enriched with matching MR links', async () => {
+    prisma.integrationToken.findMany.mockResolvedValue([
+      {
+        id: 'jira-token',
+        userId: 'user-1',
+        provider: ReportItemSource.JIRA,
+        token: 'jira',
+        baseUrl: 'https://company.atlassian.net',
+        accountEmail: 'dev@example.com',
+      },
+      {
+        id: 'gitlab-token',
+        userId: 'user-1',
+        provider: ReportItemSource.GITLAB,
+        token: 'gitlab',
+        baseUrl: 'https://gitlab.example.com',
+      },
+      {
+        id: 'github-token',
+        userId: 'user-1',
+        provider: ReportItemSource.GITHUB,
+        token: 'github',
+        baseUrl: null,
+      },
+    ]);
+    jiraClient.fetchRecentItems.mockResolvedValue([
+      {
+        source: ReportItemSource.JIRA,
+        type: 'TASK',
+        externalId: 'KUP-42',
+        title: 'KUP-42 Implement report flow',
+        url: 'https://company.atlassian.net/browse/KUP-42',
+        metadata: {
+          stageName: 'Reporting epic',
+          stageUrl: 'https://company.atlassian.net/browse/KUP-1',
+        },
+      },
+    ]);
+    gitLabClient.fetchRecentItems.mockResolvedValue([
+      {
+        source: ReportItemSource.GITLAB,
+        type: 'MR',
+        externalId: '1:7',
+        title: 'Implement report flow',
+        url: 'https://gitlab.example.com/mr/7',
+        metadata: { sourceBranch: 'feature/KUP-42' },
+      },
+    ]);
+    gitHubClient.fetchRecentItems.mockResolvedValue([]);
+
+    const result = await service.fetchConfiguredItems('user-1');
+
+    expect(result.items).toEqual([
+      expect.objectContaining({
+        source: ReportItemSource.JIRA,
+        externalId: 'KUP-42',
+        metadata: expect.objectContaining({
+          workStages: 'Reporting epic',
+          repoLinks: 'https://gitlab.example.com/mr/7',
+          repositoryLinks: [
+            {
+              label: 'Implement report flow',
+              url: 'https://gitlab.example.com/mr/7',
+            },
+          ],
+        }),
+      }),
+    ]);
+  });
+
+  it('uses one provider search link when more than four MRs match', async () => {
+    prisma.integrationToken.findMany.mockResolvedValue([
+      {
+        id: 'jira-token',
+        userId: 'user-1',
+        provider: ReportItemSource.JIRA,
+        token: 'jira',
+        baseUrl: 'https://company.atlassian.net',
+        accountEmail: 'dev@example.com',
+      },
+      {
+        id: 'gitlab-token',
+        userId: 'user-1',
+        provider: ReportItemSource.GITLAB,
+        token: 'gitlab',
+        baseUrl: 'https://gitlab.example.com',
+      },
+    ]);
+    jiraClient.fetchRecentItems.mockResolvedValue([
+      {
+        source: ReportItemSource.JIRA,
+        type: 'TASK',
+        externalId: 'KUP-42',
+        title: 'KUP-42 Implement report flow',
+      },
+    ]);
+    gitLabClient.fetchRecentItems.mockResolvedValue(
+      Array.from({ length: 5 }, (_, index) => ({
+        source: ReportItemSource.GITLAB,
+        type: 'MR',
+        externalId: `1:${index + 1}`,
+        title: `KUP-42 change ${index + 1}`,
+        url: `https://gitlab.example.com/mr/${index + 1}`,
+        metadata: {
+          providerSearchUrl:
+            'https://gitlab.example.com/dashboard/merge_requests?search=',
+        },
+      })),
+    );
+
+    const result = await service.fetchConfiguredItems('user-1');
+
+    expect(result.items[0].metadata?.repositoryLinks).toEqual([
+      {
+        label: 'View all MRs for KUP-42',
+        url: 'https://gitlab.example.com/dashboard/merge_requests?search=KUP-42',
+      },
+    ]);
   });
 });

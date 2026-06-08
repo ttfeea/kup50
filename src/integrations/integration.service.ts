@@ -161,7 +161,7 @@ export class IntegrationService {
   async fetchItems(
     userId: string,
     provider: ReportItemSource,
-    options?: { limit?: number; since?: Date },
+    options?: { limit?: number; since?: Date; until?: Date },
   ): Promise<{ items: AttachReportItemDto[] }> {
     const limit = options?.limit ?? 25;
     const token = await this.prisma.integrationToken.findUnique({
@@ -177,14 +177,19 @@ export class IntegrationService {
       throw new NotFoundException('Integration token not found');
     }
 
-    const workItems = await this.fetchExternalItems(token, limit, options?.since);
+    const workItems = await this.fetchExternalItems(
+      token,
+      limit,
+      options?.since,
+      options?.until,
+    );
 
     return { items: mapWorkItemsToAttachDto(workItems) };
   }
 
   async fetchConfiguredItems(
     userId: string,
-    options?: { limit?: number; since?: Date },
+    options?: { limit?: number; since?: Date; until?: Date },
   ): Promise<{ items: WorkItem[] }> {
     const limit = options?.limit ?? 100;
     const tokens = await this.prisma.integrationToken.findMany({
@@ -196,48 +201,136 @@ export class IntegrationService {
       },
     });
 
-    const results = await Promise.allSettled(
-      tokens.map((token) => this.fetchExternalItems(token, limit, options?.since)),
+    const jiraToken = tokens.find(
+      (token) => token.provider === ReportItemSource.JIRA,
     );
 
-    const workItems = results.flatMap((result, index) => {
+    if (!jiraToken) {
+      return { items: [] };
+    }
+
+    const jiraItems = await this.fetchExternalItems(
+      jiraToken,
+      limit,
+      options?.since,
+      options?.until,
+    );
+    const gitTokens = tokens.filter(
+      (token) =>
+        token.provider === ReportItemSource.GITLAB ||
+        token.provider === ReportItemSource.GITHUB,
+    );
+    const gitResults = await Promise.allSettled(
+      gitTokens.map((token) =>
+        this.fetchExternalItems(token, 100, options?.since, options?.until),
+      ),
+    );
+    const mergeRequests = gitResults.flatMap((result, index) => {
       if (result.status === 'fulfilled') {
         return result.value;
       }
 
-      const token = tokens[index];
-      const reason = result.reason;
+      const token = gitTokens[index];
       this.logger.warn(
         `Integration fetch failed provider=${token.provider} user=${userId} baseUrl=${token.baseUrl ?? 'none'} reason=${
-          reason instanceof Error ? reason.message : String(reason)
+          result.reason instanceof Error
+            ? result.reason.message
+            : String(result.reason)
         }`,
       );
       return [] as WorkItem[];
     });
 
-    return { items: this.mergeWorkItems(workItems, limit) };
+    return {
+      items: jiraItems.map((jiraItem) =>
+        this.attachMatchingMergeRequests(jiraItem, mergeRequests),
+      ),
+    };
   }
 
-  private mergeWorkItems(items: WorkItem[], limit: number) {
-    const byKey = new Map<string, WorkItem>();
+  private fetchExternalItems(
+    token: IntegrationToken,
+    limit: number,
+    since?: Date,
+    until?: Date,
+  ): Promise<WorkItem[]> {
+    return token.provider === ReportItemSource.JIRA
+      ? this.jiraClient.fetchRecentItems({ ...token, limit, since, until })
+      : token.provider === ReportItemSource.GITLAB
+        ? this.gitLabClient.fetchRecentItems({ ...token, limit, since, until })
+        : this.gitHubClient.fetchRecentItems({ ...token, limit, since, until });
+  }
 
-    for (const item of items) {
-      byKey.set(`${item.source}:${item.type}:${item.externalId}`, item);
+  private attachMatchingMergeRequests(
+    jiraItem: WorkItem,
+    mergeRequests: WorkItem[],
+  ): WorkItem {
+    const jiraKey = jiraItem.externalId.trim();
+    const jiraName = jiraItem.title.replace(jiraKey, '').trim();
+    const matches = mergeRequests.filter((item) =>
+      this.matchesJiraItem(item, jiraKey, jiraName),
+    );
+    const repositoryLinks =
+      matches.length > 4
+        ? this.buildProviderSearchLinks(matches, jiraKey)
+        : matches.flatMap((item) =>
+            item.url ? [{ label: item.title || item.url, url: item.url }] : [],
+          );
+    const metadata = jiraItem.metadata ?? {};
+    const stageName =
+      typeof metadata.stageName === 'string' ? metadata.stageName : '';
+
+    return {
+      ...jiraItem,
+      metadata: {
+        ...metadata,
+        workTitles: jiraItem.title,
+        workStages: stageName,
+        repositoryLinks,
+        repoLinks: repositoryLinks.map((link) => link.url).join('\n'),
+      },
+    };
+  }
+
+  private matchesJiraItem(
+    mergeRequest: WorkItem,
+    jiraKey: string,
+    jiraName: string,
+  ) {
+    const metadata = mergeRequest.metadata ?? {};
+    const haystack = [
+      mergeRequest.title,
+      metadata.sourceBranch,
+      metadata.targetBranch,
+    ]
+      .filter((value): value is string => typeof value === 'string')
+      .join(' ')
+      .toLowerCase();
+    const normalizedKey = jiraKey.toLowerCase();
+    const normalizedName = jiraName.toLowerCase();
+
+    return (
+      haystack.includes(normalizedKey) ||
+      (normalizedName.length >= 5 && haystack.includes(normalizedName))
+    );
+  }
+
+  private buildProviderSearchLinks(matches: WorkItem[], jiraKey: string) {
+    const links = new Map<string, { label: string; url: string }>();
+
+    for (const match of matches) {
+      const searchBase = match.metadata?.providerSearchUrl;
+      if (typeof searchBase !== 'string' || links.has(match.source)) {
+        continue;
+      }
+
+      links.set(match.source, {
+        label: `View all MRs for ${jiraKey}`,
+        url: `${searchBase}${encodeURIComponent(jiraKey)}`,
+      });
     }
 
-    return [...byKey.values()]
-      .sort((a, b) =>
-        (b.activityUpdatedAt ?? '').localeCompare(a.activityUpdatedAt ?? ''),
-      )
-      .slice(0, limit);
-  }
-
-  private fetchExternalItems(token: IntegrationToken, limit: number, since?: Date): Promise<WorkItem[]> {
-    return token.provider === ReportItemSource.JIRA
-      ? this.jiraClient.fetchRecentItems({ ...token, limit, since })
-      : token.provider === ReportItemSource.GITLAB
-        ? this.gitLabClient.fetchRecentItems({ ...token, limit, since })
-        : this.gitHubClient.fetchRecentItems({ ...token, limit, since });
+    return [...links.values()];
   }
 
   private async validateStoredToken(
@@ -310,7 +403,9 @@ export class IntegrationService {
     });
   }
 
-  private normalizeConnectionStatus(value: string | null | undefined): IntegrationStatus {
+  private normalizeConnectionStatus(
+    value: string | null | undefined,
+  ): IntegrationStatus {
     if (value === 'connected' || value === 'error') {
       return value;
     }

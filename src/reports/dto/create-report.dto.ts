@@ -1,5 +1,12 @@
 import { ReportStatus } from '@prisma/client';
-import { IsEnum, IsOptional, IsNumber, Min, Max } from 'class-validator';
+import {
+  IsDateString,
+  IsEnum,
+  IsOptional,
+  IsNumber,
+  Min,
+  Max,
+} from 'class-validator';
 
 export class CreateReportDto {
   @IsOptional()
@@ -11,4 +18,12 @@ export class CreateReportDto {
   @Min(1)
   @Max(365)
   periodDays?: number;
+
+  @IsOptional()
+  @IsDateString()
+  periodStart?: string;
+
+  @IsOptional()
+  @IsDateString()
+  periodEnd?: string;
 }

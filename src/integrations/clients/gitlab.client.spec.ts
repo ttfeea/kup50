@@ -130,14 +130,19 @@ describe('GitLabClient', () => {
     });
   });
 
-  it('uses broad GitLab filters for issues and project discovery without timing out MR lookups', async () => {
+  it('fetches only authored and assigned merge requests', async () => {
     fetchMock.mockImplementation((url: string | URL | Request) => {
       const target = typeof url === 'string' ? url : url.toString();
 
       if (target.includes('/user')) {
         return Promise.resolve(
           new Response(
-            JSON.stringify({ id: 42, username: 'dev', name: 'Dev User', email: 'dev@example.com' }),
+            JSON.stringify({
+              id: 42,
+              username: 'dev',
+              name: 'Dev User',
+              email: 'dev@example.com',
+            }),
             {
               status: 200,
               headers: { 'content-type': 'application/json; charset=utf-8' },
@@ -146,39 +151,26 @@ describe('GitLabClient', () => {
         );
       }
 
-      if (target.includes('/issues?')) {
-        return Promise.resolve(
-          new Response(JSON.stringify([]), {
-            status: 200,
-            headers: { 'content-type': 'application/json; charset=utf-8' },
-          }),
-        );
-      }
-
       if (target.includes('/merge_requests?')) {
         return Promise.resolve(
-          new Response(JSON.stringify([]), {
-            status: 200,
-            headers: { 'content-type': 'application/json; charset=utf-8' },
-          }),
-        );
-      }
-
-      if (target.includes('/events?')) {
-        return Promise.resolve(
-          new Response(JSON.stringify([]), {
-            status: 200,
-            headers: { 'content-type': 'application/json; charset=utf-8' },
-          }),
-        );
-      }
-
-      if (target.includes('/projects?')) {
-        return Promise.resolve(
-          new Response(JSON.stringify([]), {
-            status: 200,
-            headers: { 'content-type': 'application/json; charset=utf-8' },
-          }),
+          new Response(
+            JSON.stringify([
+              {
+                id: 10,
+                iid: 7,
+                project_id: 99,
+                title: 'KUP-42 implement report flow',
+                web_url:
+                  'https://gitlab.example.com/team/app/-/merge_requests/7',
+                source_branch: 'feature/KUP-42',
+                target_branch: 'main',
+              },
+            ]),
+            {
+              status: 200,
+              headers: { 'content-type': 'application/json; charset=utf-8' },
+            },
+          ),
         );
       }
 
@@ -190,28 +182,36 @@ describe('GitLabClient', () => {
       );
     });
 
-    await client.fetchRecentItems({
+    const items = await client.fetchRecentItems({
       token: 'glpat-token',
       baseUrl: 'https://gitlab.example.com',
       limit: 25,
     });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining('/issues?author_id=42'),
+      expect.stringContaining(
+        '/merge_requests?scope=all&state=all&author_id=42',
+      ),
       expect.anything(),
     );
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining('/merge_requests?state=opened'),
+      expect.stringContaining(
+        '/merge_requests?scope=all&state=all&assignee_id=42',
+      ),
       expect.anything(),
     );
-    expect(fetchMock).not.toHaveBeenCalledWith(
-      expect.stringContaining('/merge_requests?scope=all'),
-      expect.anything(),
-    );
-    expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining('/projects?membership=true'),
-      expect.anything(),
-    );
+    expect(items).toEqual([
+      expect.objectContaining({
+        type: 'MR',
+        metadata: expect.objectContaining({
+          sourceBranch: 'feature/KUP-42',
+          targetBranch: 'main',
+        }),
+      }),
+    ]);
+    expect(
+      fetchMock.mock.calls.some(([url]) => String(url).includes('/commits')),
+    ).toBe(false);
   });
 
   it('falls back to bearer auth when private token auth is rejected', async () => {

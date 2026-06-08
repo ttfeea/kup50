@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma, ReportItemSource, ReportStatus } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { WorkItem } from '../common/types/work-item.type';
@@ -32,7 +36,19 @@ export class ReportsService {
 
   async create(userId: string, dto: CreateReportDto) {
     const periodDays = dto.periodDays ?? 30;
-    const { periodEnd, periodStart } = this.getDefaultPeriodWindow(periodDays);
+    const defaultWindow = this.getDefaultPeriodWindow(periodDays);
+    const periodStart = dto.periodStart
+      ? new Date(dto.periodStart)
+      : defaultWindow.periodStart;
+    const periodEnd = dto.periodEnd
+      ? new Date(dto.periodEnd)
+      : defaultWindow.periodEnd;
+
+    if (periodStart > periodEnd) {
+      throw new BadRequestException(
+        'Report period start must be before period end',
+      );
+    }
 
     const report = await this.prisma.report.create({
       data: {
@@ -76,7 +92,9 @@ export class ReportsService {
         externalId: item.externalId,
         title: item.title,
         url: item.url,
-        metadata: buildWorkItemMetadata(item) as Prisma.InputJsonValue | undefined,
+        metadata: buildWorkItemMetadata(item) as
+          | Prisma.InputJsonValue
+          | undefined,
       })),
     });
 
@@ -125,7 +143,9 @@ export class ReportsService {
 
     return {
       ...report,
-      workItems: report.reportItems.map((item) => mapReportItemToWorkItem(item)),
+      workItems: report.reportItems.map((item) =>
+        mapReportItemToWorkItem(item),
+      ),
     };
   }
 
@@ -142,7 +162,9 @@ export class ReportsService {
 
     return reports.map((report) => ({
       ...report,
-      workItems: report.reportItems.map((item) => mapReportItemToWorkItem(item)),
+      workItems: report.reportItems.map((item) =>
+        mapReportItemToWorkItem(item),
+      ),
     }));
   }
 
@@ -151,6 +173,8 @@ export class ReportsService {
     reportId: string,
     limit = 100,
     periodDays?: number,
+    requestedPeriodStart?: string,
+    requestedPeriodEnd?: string,
   ) {
     await this.assertOwnedReport(userId, reportId);
 
@@ -163,11 +187,18 @@ export class ReportsService {
       throw new NotFoundException('Report not found');
     }
 
-    const since = periodDays
-      ? this.getDefaultPeriodWindow(periodDays).periodStart
-      : report.periodStart;
+    const since = requestedPeriodStart
+      ? new Date(requestedPeriodStart)
+      : periodDays
+        ? this.getDefaultPeriodWindow(periodDays).periodStart
+        : report.periodStart;
+    const until = requestedPeriodEnd ? new Date(requestedPeriodEnd) : undefined;
 
-    return this.integrationService.fetchConfiguredItems(userId, { limit, since });
+    return this.integrationService.fetchConfiguredItems(userId, {
+      limit,
+      since,
+      until,
+    });
   }
 
   async deleteDraft(userId: string, reportId: string) {

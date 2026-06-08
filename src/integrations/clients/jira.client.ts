@@ -19,6 +19,10 @@ type JiraSearchResponse = {
       status?: { name?: string };
       created?: string;
       updated?: string;
+      parent?: {
+        key?: string;
+        fields?: { summary?: string; issuetype?: { name?: string } };
+      };
     };
   }>;
 };
@@ -51,6 +55,7 @@ export class JiraClient extends BaseClient {
     accountEmail?: string | null;
     limit: number;
     since?: Date;
+    until?: Date;
   }): Promise<WorkItem[]> {
     const { baseUrl, auth } = this.normalizeOptions(options);
     this.logger.debug(`Jira fetch baseUrl=${baseUrl}`);
@@ -66,10 +71,14 @@ export class JiraClient extends BaseClient {
       'validation',
     );
 
-    let jql = 'assignee = currentUser() ORDER BY updated DESC';
+    let jql =
+      'assignee = currentUser() AND statusCategory = Done ORDER BY updated DESC';
     if (options.since) {
       const sinceStr = options.since.toISOString().split('T')[0];
-      jql = `assignee = currentUser() AND updated >= "${sinceStr}" ORDER BY updated DESC`;
+      const untilClause = options.until
+        ? ` AND updated <= "${options.until.toISOString().split('T')[0]} 23:59"`
+        : '';
+      jql = `assignee = currentUser() AND statusCategory = Done AND updated >= "${sinceStr}"${untilClause} ORDER BY updated DESC`;
     }
 
     const response = await this.requestJiraJson<JiraSearchResponse>(
@@ -84,7 +93,14 @@ export class JiraClient extends BaseClient {
         body: JSON.stringify({
           jql,
           maxResults: options.limit,
-          fields: ['summary', 'issuetype', 'status', 'created', 'updated'],
+          fields: [
+            'summary',
+            'issuetype',
+            'status',
+            'created',
+            'updated',
+            'parent',
+          ],
         }),
       },
       'fetch',
@@ -95,6 +111,9 @@ export class JiraClient extends BaseClient {
 
     return issues.map((issue) => {
       const issueTypeName = issue.fields?.issuetype?.name;
+      const parent = issue.fields?.parent;
+      const stageKey = parent?.key;
+      const stageName = parent?.fields?.summary ?? stageKey;
 
       return {
         source: ReportItemSource.JIRA,
@@ -112,6 +131,9 @@ export class JiraClient extends BaseClient {
           issueType: issueTypeName,
           status: issue.fields?.status?.name,
           updated: issue.fields?.updated,
+          stageKey,
+          stageName,
+          stageUrl: stageKey ? `${baseUrl}/browse/${stageKey}` : undefined,
         },
       };
     });
@@ -140,9 +162,7 @@ export class JiraClient extends BaseClient {
     try {
       parsedBaseUrl = new URL(rawBaseUrl);
     } catch {
-      throw new BadRequestException(
-        'Jira base URL must be a valid HTTPS URL',
-      );
+      throw new BadRequestException('Jira base URL must be a valid HTTPS URL');
     }
 
     if (parsedBaseUrl.protocol !== 'https:') {
@@ -171,9 +191,7 @@ export class JiraClient extends BaseClient {
     }
 
     const body = await response.text();
-    this.logger.debug(
-      `Jira ${operation} responseStatus=${response.status}`,
-    );
+    this.logger.debug(`Jira ${operation} responseStatus=${response.status}`);
     if (!response.ok) {
       const message =
         response.status === 401 || response.status === 403

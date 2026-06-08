@@ -53,11 +53,21 @@ export function getReport(authToken: string | null, reportId: string) {
   return apiRequest<ReportDto>(`/reports/${reportId}`, { token: authToken });
 }
 
-export function createReport(authToken: string | null, periodDays = 30) {
+export function createReport(
+  authToken: string | null,
+  periodDays = 30,
+  periodStart?: string,
+  periodEnd?: string,
+) {
   return apiRequest<ReportDto>('/reports', {
     method: 'POST',
     token: authToken,
-    body: JSON.stringify({ status: 'DRAFT', periodDays }),
+    body: JSON.stringify({
+      status: 'DRAFT',
+      periodDays,
+      periodStart,
+      periodEnd,
+    }),
   });
 }
 
@@ -78,9 +88,15 @@ export async function previewIntegrationItems(
   authToken: string | null,
   limit = 100,
   periodDays = 30,
+  periodStart?: string,
+  periodEnd?: string,
 ) {
+  const periodQuery =
+    periodStart && periodEnd
+      ? `&periodStart=${encodeURIComponent(periodStart)}&periodEnd=${encodeURIComponent(periodEnd)}`
+      : `&periodDays=${periodDays}`;
   const response = await apiRequest<{ items: WorkItem[] }>(
-    `/integrations/preview?limit=${limit}&periodDays=${periodDays}`,
+    `/integrations/preview?limit=${limit}${periodQuery}`,
     { token: authToken },
   );
 
@@ -123,13 +139,18 @@ export function confirmReport(authToken: string | null, reportId: string) {
 }
 
 export function deleteDraftReport(authToken: string | null, reportId: string) {
-  return apiRequest<{ deleted: boolean; reportId: string }>(`/reports/${reportId}`, {
-    method: 'DELETE',
-    token: authToken,
-  });
+  return apiRequest<{ deleted: boolean; reportId: string }>(
+    `/reports/${reportId}`,
+    {
+      method: 'DELETE',
+      token: authToken,
+    },
+  );
 }
 
-export function formatReportPeriod(report: Pick<ReportDto, 'periodStart' | 'periodEnd'>) {
+export function formatReportPeriod(
+  report: Pick<ReportDto, 'periodStart' | 'periodEnd'>,
+) {
   const start = new Date(report.periodStart);
   const end = new Date(report.periodEnd);
 

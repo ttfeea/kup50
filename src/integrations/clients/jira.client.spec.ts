@@ -80,26 +80,26 @@ describe('JiraClient', () => {
       )
       .mockResolvedValueOnce(
         new Response(
-        JSON.stringify({
-          issues: [
-            {
-              id: '10001',
-              key: 'KUP-42',
-              self: 'https://company.atlassian.net/rest/api/3/issue/10001',
-              fields: {
-                summary: 'Prepare monthly report',
-                issuetype: { name: 'Task' },
-                status: { name: 'In Progress' },
-                created: '2026-06-01T10:00:00.000Z',
-                updated: '2026-06-08T10:00:00.000Z',
+          JSON.stringify({
+            issues: [
+              {
+                id: '10001',
+                key: 'KUP-42',
+                self: 'https://company.atlassian.net/rest/api/3/issue/10001',
+                fields: {
+                  summary: 'Prepare monthly report',
+                  issuetype: { name: 'Task' },
+                  status: { name: 'In Progress' },
+                  created: '2026-06-01T10:00:00.000Z',
+                  updated: '2026-06-08T10:00:00.000Z',
+                },
               },
-            },
-          ],
-        }),
-        {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        },
+            ],
+          }),
+          {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          },
         ),
       );
 
@@ -116,7 +116,7 @@ describe('JiraClient', () => {
       expect.objectContaining({
         method: 'POST',
         body: expect.stringContaining(
-          'assignee = currentUser() AND updated >= \\"2026-06-01\\" ORDER BY updated DESC',
+          'assignee = currentUser() AND statusCategory = Done AND updated >= \\"2026-06-01\\" ORDER BY updated DESC',
         ),
       }),
     );

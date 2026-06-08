@@ -7,7 +7,7 @@ import { ReportItemSource, WorkItemType } from '@prisma/client';
 import { WorkItem } from '../../common/types/work-item.type';
 import { BaseClient } from './base-client';
 
-type GitLabIssue = {
+type GitLabMergeRequest = {
   id: number;
   iid: number;
   project_id: number;
@@ -16,50 +16,12 @@ type GitLabIssue = {
   state?: string;
   created_at?: string;
   updated_at?: string;
-};
-
-type GitLabMergeRequest = GitLabIssue;
-
-type GitLabEvent = {
-  id: number;
-  action_name?: string;
-  created_at?: string;
-  project_id?: number;
-  target_title?: string;
-  target_type?: string;
-  push_data?: {
-    commit_to?: string;
-    commit_title?: string;
-    commit_count?: number;
-  };
-};
-
-type GitLabProject = {
-  id: number;
-  name?: string;
-  path_with_namespace?: string;
-  web_url?: string;
-  visibility?: string;
+  source_branch?: string;
+  target_branch?: string;
 };
 
 type GitLabUser = {
   id: number;
-  username?: string;
-  name?: string;
-  email?: string;
-};
-
-type GitLabCommit = {
-  id: string;
-  title?: string;
-  message?: string;
-  author_name?: string;
-  author_email?: string;
-  committer_name?: string;
-  committer_email?: string;
-  web_url?: string;
-  created_at?: string;
-  committed_date?: string;
 };
 
 @Injectable()
@@ -83,51 +45,22 @@ export class GitLabClient extends BaseClient {
     baseUrl?: string | null;
     limit: number;
     since?: Date;
+    until?: Date;
   }): Promise<WorkItem[]> {
     const apiBaseUrl = this.getApiBaseUrl(options.baseUrl);
     const token = options.token.trim();
-    const commitBudget = Math.max(15, Math.floor(options.limit * 0.4));
-    const otherBudget = options.limit - commitBudget;
-    const perOther = Math.max(5, Math.ceil(otherBudget / 3));
-
-    const authenticatedUser = await this.fetchAuthenticatedUser(apiBaseUrl, token);
-    const memberProjects = await this.fetchMemberProjects(apiBaseUrl, token);
-
-    const [issues, mergeRequests, events, commits] = await Promise.all([
-      this.fetchIssues(apiBaseUrl, token, perOther, authenticatedUser, memberProjects, options.since),
-      this.fetchMergeRequests(apiBaseUrl, token, perOther, authenticatedUser, options.since),
-      this.fetchEventItems(apiBaseUrl, token, perOther, memberProjects, options.since),
-      this.fetchRecentCommits(apiBaseUrl, token, commitBudget, authenticatedUser, memberProjects, options.since),
-    ]);
-
-    return this.mergeWorkItems(
-      [...issues, ...mergeRequests, ...events, ...commits],
+    const authenticatedUser = await this.fetchAuthenticatedUser(
+      apiBaseUrl,
+      token,
+    );
+    return this.fetchMergeRequests(
+      apiBaseUrl,
+      token,
       options.limit,
+      authenticatedUser,
+      options.since,
+      options.until,
     );
-  }
-
-  private async fetchIssues(
-    apiBaseUrl: string,
-    token: string,
-    limit: number,
-    user: GitLabUser,
-    memberProjects: GitLabProject[],
-    since?: Date,
-  ) {
-    const sinceParam = since ? `&updated_after=${since.toISOString()}` : '';
-    const authored = await this.requestGitLabJson<GitLabIssue[]>(
-      `${apiBaseUrl}/issues?author_id=${user.id}&state=all&order_by=updated_at&sort=desc&per_page=${limit}${sinceParam}`,
-      token,
-    );
-    const assigned = await this.requestGitLabJson<GitLabIssue[]>(
-      `${apiBaseUrl}/issues?assignee_id=${user.id}&state=all&order_by=updated_at&sort=desc&per_page=${limit}${sinceParam}`,
-      token,
-    );
-
-    const issues = this.dedupeByKey([...authored, ...assigned], (item) => `${item.project_id}:${item.iid}`)
-      .filter((item) => this.isRelevantGitLabItem(item.project_id, memberProjects));
-
-    return issues.map((issue) => this.mapIssue(issue, WorkItemType.ISSUE));
   }
 
   private async fetchMergeRequests(
@@ -136,27 +69,36 @@ export class GitLabClient extends BaseClient {
     limit: number,
     user: GitLabUser,
     since?: Date,
+    until?: Date,
   ) {
     const sinceParam = since ? `&updated_after=${since.toISOString()}` : '';
+    const untilParam = until ? `&updated_before=${until.toISOString()}` : '';
     const authored = await this.requestGitLabJson<GitLabMergeRequest[]>(
-      `${apiBaseUrl}/merge_requests?state=opened&author_id=${user.id}&order_by=updated_at&sort=desc&per_page=${limit}${sinceParam}`,
+      `${apiBaseUrl}/merge_requests?scope=all&state=all&author_id=${user.id}&order_by=updated_at&sort=desc&per_page=${limit}${sinceParam}${untilParam}`,
       token,
     );
     const assigned = await this.requestGitLabJson<GitLabMergeRequest[]>(
-      `${apiBaseUrl}/merge_requests?state=opened&assignee_id=${user.id}&order_by=updated_at&sort=desc&per_page=${limit}${sinceParam}`,
+      `${apiBaseUrl}/merge_requests?scope=all&state=all&assignee_id=${user.id}&order_by=updated_at&sort=desc&per_page=${limit}${sinceParam}${untilParam}`,
       token,
     );
 
-    const mergeRequests = this.dedupeByKey([...authored, ...assigned], (item) => `${item.project_id}:${item.iid}`)
-      .filter((item) => item?.id != null);
+    const mergeRequests = this.dedupeByKey(
+      [...authored, ...assigned],
+      (item) => `${item.project_id}:${item.iid}`,
+    ).filter((item) => item?.id != null);
 
-    return mergeRequests.map((item) => this.mapIssue(item, WorkItemType.MR));
+    return mergeRequests.map((item) => this.mapMergeRequest(item, apiBaseUrl));
   }
 
-  private mapIssue(item: GitLabIssue, type: WorkItemType): WorkItem {
+  private mapMergeRequest(
+    item: GitLabMergeRequest,
+    apiBaseUrl: string,
+  ): WorkItem {
+    const providerBaseUrl = apiBaseUrl.replace(/\/api\/v4$/, '');
+
     return {
       source: ReportItemSource.GITLAB,
-      type,
+      type: WorkItemType.MR,
       externalId: `${item.project_id}:${item.iid}`,
       title: item.title,
       url: item.web_url,
@@ -167,148 +109,15 @@ export class GitLabClient extends BaseClient {
         iid: item.iid,
         projectId: item.project_id,
         state: item.state,
+        sourceBranch: item.source_branch,
+        targetBranch: item.target_branch,
+        providerSearchUrl: `${providerBaseUrl}/dashboard/merge_requests?search=`,
       },
     };
   }
 
-  private async fetchEventItems(
-    apiBaseUrl: string,
-    token: string,
-    limit: number,
-    memberProjects: GitLabProject[],
-    since?: Date,
-  ) {
-    const sinceParam = since ? `&after=${since.toISOString()}` : '';
-    const events = await this.requestGitLabJson<GitLabEvent[]>(
-      `${apiBaseUrl}/events?per_page=${Math.min(limit * 2, 100)}${sinceParam}`,
-      token,
-    );
-
-    const items: WorkItem[] = [];
-
-    for (const event of events) {
-      if (!this.isRelevantGitLabItem(event.project_id ?? 0, memberProjects)) {
-        continue;
-      }
-
-      if (event.action_name === 'pushed' && event.push_data?.commit_to) {
-        items.push({
-          source: ReportItemSource.GITLAB,
-          type: WorkItemType.COMMIT,
-          externalId: `event:${event.id}:${event.push_data.commit_to}`,
-          title:
-            event.push_data.commit_title ??
-            event.target_title ??
-            'GitLab push activity',
-          activityCreatedAt: event.created_at,
-          activityUpdatedAt: event.created_at,
-          metadata: {
-            projectId: event.project_id,
-            action: event.action_name,
-            commitTo: event.push_data.commit_to,
-            commitCount: event.push_data.commit_count,
-          },
-        });
-        continue;
-      }
-
-      if (event.target_type === 'MergeRequest') {
-        items.push({
-          source: ReportItemSource.GITLAB,
-          type: WorkItemType.MR,
-          externalId: `event-mr:${event.id}`,
-          title: event.target_title ?? 'Merge request activity',
-          activityCreatedAt: event.created_at,
-          activityUpdatedAt: event.created_at,
-          metadata: {
-            projectId: event.project_id,
-            action: event.action_name,
-          },
-        });
-      }
-    }
-
-    return items;
-  }
-
-  private async fetchRecentCommits(
-    apiBaseUrl: string,
-    token: string,
-    limit: number,
-    user: GitLabUser,
-    memberProjects: GitLabProject[],
-    since?: Date,
-  ) {
-    const projects = memberProjects.slice(0, 8);
-
-    const perProject = Math.max(5, Math.ceil(limit / Math.max(projects.length, 1)));
-    const sinceParam = since ? `&since=${since.toISOString()}` : '';
-
-    const commitLists = await Promise.all(
-      projects.map((project) =>
-        this.requestGitLabJson<GitLabCommit[]>(
-          `${apiBaseUrl}/projects/${project.id}/repository/commits?per_page=${perProject}${sinceParam}`,
-          token,
-        ).catch(() => [] as GitLabCommit[]),
-      ),
-    );
-
-    const allCommits = commitLists.flat();
-    const filteredCommits = allCommits.filter((commit) =>
-      this.matchesAuthenticatedGitLabUser(commit, user),
-    );
-
-    return filteredCommits.map((commit, index) => ({
-      source: ReportItemSource.GITLAB,
-      type: WorkItemType.COMMIT,
-      externalId: commit.id || `commit-${index}`,
-      title: commit.title ?? commit.message?.split('\n')[0] ?? 'GitLab commit',
-      url: commit.web_url,
-      activityCreatedAt: commit.created_at ?? commit.committed_date,
-      activityUpdatedAt: commit.committed_date ?? commit.created_at,
-      metadata: {
-        sha: commit.id,
-      },
-    }));
-  }
-
   private async fetchAuthenticatedUser(apiBaseUrl: string, token: string) {
     return this.requestGitLabJson<GitLabUser>(`${apiBaseUrl}/user`, token);
-  }
-
-  private async fetchMemberProjects(apiBaseUrl: string, token: string) {
-    return this.requestGitLabJson<GitLabProject[]>(
-      `${apiBaseUrl}/projects?membership=true&min_access_level=10&simple=true&order_by=last_activity_at&sort=desc&per_page=100`,
-      token,
-    );
-  }
-
-  private isRelevantGitLabItem(projectId: number | undefined, memberProjects: GitLabProject[]) {
-    return Boolean(projectId && memberProjects.some((project) => project.id === projectId));
-  }
-
-  private matchesAuthenticatedGitLabUser(commit: GitLabCommit, user: GitLabUser) {
-    const candidateValues = [
-      user.username,
-      user.name,
-      user.email,
-      commit.author_name,
-      commit.author_email,
-      commit.committer_name,
-      commit.committer_email,
-      commit.title,
-      commit.message,
-    ]
-      .filter((value): value is string => Boolean(value))
-      .map((value) => value.toLowerCase());
-
-    const userTokens = [user.username, user.name, user.email]
-      .filter((value): value is string => Boolean(value))
-      .map((value) => value.toLowerCase());
-
-    return candidateValues.some((value) =>
-      userTokens.some((token) => value.includes(token)),
-    );
   }
 
   private dedupeByKey<T>(items: T[], keyFn: (item: T) => string) {
@@ -322,20 +131,6 @@ export class GitLabClient extends BaseClient {
       seen.add(key);
       return true;
     });
-  }
-
-  private mergeWorkItems(items: WorkItem[], limit: number) {
-    const byKey = new Map<string, WorkItem>();
-
-    for (const item of items) {
-      byKey.set(`${item.source}:${item.type}:${item.externalId}`, item);
-    }
-
-    return [...byKey.values()]
-      .sort((a, b) =>
-        (b.activityUpdatedAt ?? '').localeCompare(a.activityUpdatedAt ?? ''),
-      )
-      .slice(0, limit);
   }
 
   private getApiBaseUrl(baseUrl?: string | null) {

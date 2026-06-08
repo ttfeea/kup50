@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, Max, Min } from 'class-validator';
+import { IsDateString, IsInt, IsOptional, Max, Min } from 'class-validator';
 
 export class FetchIntegrationItemsDto {
   @IsOptional()
@@ -15,4 +15,12 @@ export class FetchIntegrationItemsDto {
   @Min(1)
   @Max(365)
   periodDays?: number;
+
+  @IsOptional()
+  @IsDateString()
+  periodStart?: string;
+
+  @IsOptional()
+  @IsDateString()
+  periodEnd?: string;
 }

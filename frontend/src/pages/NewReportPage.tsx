@@ -10,10 +10,20 @@ import { useAuth } from '../contexts/AuthContext';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Panel } from '../components/ui/Panel';
 import { WorkItem, WorkItemType } from '../types/work-item';
-import { ReportRow } from '../types/report-row';
+import {
+  formatMonthFromDate,
+  formatTitleWithDepartment,
+  ReportRow,
+  safeString,
+} from '../types/report-row';
 import { normalizeWorkItemsToRows } from '../types/report-normalizer';
 
-const periodOptions = [30, 45, 60] as const;
+const periodOptions = [30, 45] as const;
+
+type RepositoryLink = {
+  label: string;
+  url: string;
+};
 
 type AuthUserForReport = {
   employeeId: string;
@@ -30,6 +40,8 @@ type BuilderRow = ReportRow & {
   externalId: string;
   itemTitle: string;
   url?: string;
+  stageUrl?: string;
+  repositoryLinks: RepositoryLink[];
   activityCreatedAt: string;
   activityUpdatedAt: string;
 };
@@ -42,6 +54,42 @@ function getReportPeriodStart(periodDays: number) {
   return new Date(
     Date.now() - (periodDays - 1) * 24 * 60 * 60 * 1000,
   ).toISOString();
+}
+
+function toDateInputValue(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function formatPeriodRange(start: string, end: string) {
+  const formatter = new Intl.DateTimeFormat(undefined, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+
+  return `${formatter.format(new Date(start))} - ${formatter.format(new Date(end))}`;
+}
+
+function renderRepositoryLinks(value: string) {
+  return value.split('\n').map((line, index) => {
+    const link = line.trim();
+
+    return link.startsWith('http') ? (
+      <a
+        key={`${link}-${index}`}
+        href={link}
+        target="_blank"
+        rel="noreferrer"
+        className="block text-emerald-700 underline dark:text-emerald-300"
+      >
+        {link}
+      </a>
+    ) : (
+      <span key={`${link}-${index}`} className="block">
+        {line}
+      </span>
+    );
+  });
 }
 
 function buildReportRows(
@@ -69,6 +117,16 @@ function buildReportRows(
     externalId: item.externalId,
     itemTitle: item.title?.trim() || item.externalId,
     url: item.url ?? undefined,
+    stageUrl:
+      typeof item.metadata?.stageUrl === 'string'
+        ? item.metadata.stageUrl
+        : undefined,
+    repositoryLinks: Array.isArray(item.metadata?.repositoryLinks)
+      ? (item.metadata.repositoryLinks as RepositoryLink[]).filter(
+          (link) =>
+            typeof link?.label === 'string' && typeof link?.url === 'string',
+        )
+      : [],
     activityCreatedAt: item.activityCreatedAt ?? new Date().toISOString(),
     activityUpdatedAt: item.activityUpdatedAt ?? new Date().toISOString(),
   }));
@@ -102,6 +160,8 @@ function generateManualRow(
     externalId: `manual:${createRowId()}`,
     itemTitle: '',
     url: undefined,
+    stageUrl: undefined,
+    repositoryLinks: [],
     activityCreatedAt: timestamp,
     activityUpdatedAt: timestamp,
     employeeId: userInfo.employeeId || '',
@@ -129,15 +189,56 @@ export function NewReportPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
+  const [showFullPreview, setShowFullPreview] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [pendingLocation, setPendingLocation] = useState<string | null>(null);
   const [periodDays, setPeriodDays] = useState<number>(30);
-  const [customPeriodDays, setCustomPeriodDays] = useState<number>(30);
+  const [customPeriodStart, setCustomPeriodStart] = useState(() =>
+    toDateInputValue(new Date(Date.now() - 29 * 24 * 60 * 60 * 1000)),
+  );
+  const [customPeriodEnd, setCustomPeriodEnd] = useState(() =>
+    toDateInputValue(new Date()),
+  );
 
-  const activePeriodDays = periodDays === 0 ? customPeriodDays : periodDays;
+  const activePeriodDays = periodDays === 0 ? 30 : periodDays;
   const reportPeriodStart = useMemo(
-    () => getReportPeriodStart(activePeriodDays),
-    [activePeriodDays],
+    () =>
+      periodDays === 0
+        ? new Date(`${customPeriodStart}T00:00:00`).toISOString()
+        : getReportPeriodStart(activePeriodDays),
+    [activePeriodDays, customPeriodStart, periodDays],
+  );
+  const reportPeriodEnd = useMemo(
+    () =>
+      periodDays === 0
+        ? new Date(`${customPeriodEnd}T23:59:59.999`).toISOString()
+        : new Date().toISOString(),
+    [customPeriodEnd, periodDays],
+  );
+  const reportInfo = useMemo(
+    () => ({
+      employeeId: safeString(user?.employeeId),
+      name: safeString(user?.name),
+      title: formatTitleWithDepartment(user?.position, user?.department),
+      manager: safeString(user?.managerName),
+      month: formatMonthFromDate(reportPeriodStart),
+      period: formatPeriodRange(reportPeriodStart, reportPeriodEnd),
+    }),
+    [reportPeriodEnd, reportPeriodStart, user],
+  );
+  const fullPreviewRows = useMemo<ReportRow[]>(
+    () =>
+      rows.map((row) => ({
+        employeeId: reportInfo.employeeId,
+        name: reportInfo.name,
+        title: reportInfo.title,
+        manager: reportInfo.manager,
+        month: reportInfo.month,
+        workTitles: row.workTitles,
+        workStages: row.workStages,
+        repoLinks: row.repoLinks,
+      })),
+    [reportInfo, rows],
   );
 
   useEffect(() => {
@@ -178,6 +279,12 @@ export function NewReportPage() {
         accessToken,
         100,
         activePeriodDays,
+        periodDays === 0
+          ? new Date(`${customPeriodStart}T00:00:00`).toISOString()
+          : undefined,
+        periodDays === 0
+          ? new Date(`${customPeriodEnd}T23:59:59.999`).toISOString()
+          : undefined,
       );
       const safeItems = Array.isArray(items) ? items : [];
       const userInfo = currentUser
@@ -280,7 +387,16 @@ export function NewReportPage() {
     setMessage(null);
 
     try {
-      const report = await createReport(accessToken, activePeriodDays);
+      const report = await createReport(
+        accessToken,
+        activePeriodDays,
+        periodDays === 0
+          ? new Date(`${customPeriodStart}T00:00:00`).toISOString()
+          : undefined,
+        periodDays === 0
+          ? new Date(`${customPeriodEnd}T23:59:59.999`).toISOString()
+          : undefined,
+      );
       const itemsToAttach = rows.map((row) => ({
         source: row.source,
         type: row.itemType,
@@ -295,6 +411,9 @@ export function NewReportPage() {
         metadata: {
           workTitles: row.workTitles,
           workStages: row.workStages,
+          repoLinks: row.repoLinks,
+          stageUrl: row.stageUrl,
+          repositoryLinks: row.repositoryLinks,
         },
       }));
 
@@ -381,6 +500,44 @@ export function NewReportPage() {
       ) : null}
 
       <Panel>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-ink dark:text-white">
+              Report information
+            </h2>
+            <p className="mt-1 text-xs text-ink-muted dark:text-slate-400">
+              Edit profile information in Settings.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowFullPreview(true)}
+            disabled={rows.length === 0}
+            className="rounded-md border border-emerald-600 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-emerald-300 dark:hover:bg-emerald-500/10"
+          >
+            Preview full KUP50 table
+          </button>
+        </div>
+        <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
+          {[
+            ['Employee ID', reportInfo.employeeId],
+            ['Full Name', reportInfo.name],
+            ['Position + Department', reportInfo.title],
+            ['Manager Name', reportInfo.manager],
+            ['Month', reportInfo.month],
+            ['Period range', reportInfo.period],
+          ].map(([label, value]) => (
+            <div key={label}>
+              <dt className="text-xs font-medium uppercase tracking-wide text-ink-muted dark:text-slate-400">
+                {label}
+              </dt>
+              <dd className="mt-1 text-ink dark:text-slate-100">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      </Panel>
+
+      <Panel>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-base font-semibold text-ink dark:text-white">
@@ -409,18 +566,28 @@ export function NewReportPage() {
               </select>
             </label>
             {isCustomPeriod ? (
-              <label className="flex items-center gap-2 text-sm text-ink-muted dark:text-slate-400">
-                <span>Days</span>
-                <input
-                  type="number"
-                  min={1}
-                  value={customPeriodDays}
-                  onChange={(event) =>
-                    setCustomPeriodDays(Number(event.target.value))
-                  }
-                  className="w-24 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
-                />
-              </label>
+              <>
+                <label className="flex items-center gap-2 text-sm text-ink-muted dark:text-slate-400">
+                  <span>From</span>
+                  <input
+                    type="date"
+                    value={customPeriodStart}
+                    onChange={(event) =>
+                      setCustomPeriodStart(event.target.value)
+                    }
+                    className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
+                  />
+                </label>
+                <label className="flex items-center gap-2 text-sm text-ink-muted dark:text-slate-400">
+                  <span>To</span>
+                  <input
+                    type="date"
+                    value={customPeriodEnd}
+                    onChange={(event) => setCustomPeriodEnd(event.target.value)}
+                    className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
+                  />
+                </label>
+              </>
             ) : null}
             <button
               type="button"
@@ -448,24 +615,9 @@ export function NewReportPage() {
           </p>
         ) : (
           <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
-            <table className="min-w-[1100px] text-left text-sm">
+            <table className="min-w-[760px] w-full text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase text-ink-muted dark:bg-slate-950 dark:text-slate-400">
                 <tr>
-                  <th className="sticky top-0 border-b border-slate-200 px-3 py-3 text-left dark:border-slate-800">
-                    Employee ID
-                  </th>
-                  <th className="sticky top-0 border-b border-slate-200 px-3 py-3 text-left dark:border-slate-800">
-                    Name Surname
-                  </th>
-                  <th className="sticky top-0 border-b border-slate-200 px-3 py-3 text-left dark:border-slate-800">
-                    Title + Department
-                  </th>
-                  <th className="sticky top-0 border-b border-slate-200 px-3 py-3 text-left dark:border-slate-800">
-                    Approving Manager
-                  </th>
-                  <th className="sticky top-0 border-b border-slate-200 px-3 py-3 text-left dark:border-slate-800">
-                    Month
-                  </th>
                   <th className="sticky top-0 border-b border-slate-200 px-3 py-3 text-left dark:border-slate-800">
                     Creative Work Titles
                   </th>
@@ -485,41 +637,6 @@ export function NewReportPage() {
                   >
                     <td className="px-3 py-3">
                       <input
-                        readOnly
-                        value={row.employeeId}
-                        className="w-full rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
-                      />
-                    </td>
-                    <td className="px-3 py-3">
-                      <input
-                        readOnly
-                        value={row.name}
-                        className="w-full rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
-                      />
-                    </td>
-                    <td className="px-3 py-3">
-                      <input
-                        readOnly
-                        value={row.title}
-                        className="w-full rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
-                      />
-                    </td>
-                    <td className="px-3 py-3">
-                      <input
-                        readOnly
-                        value={row.manager}
-                        className="w-full rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
-                      />
-                    </td>
-                    <td className="px-3 py-3">
-                      <input
-                        readOnly
-                        value={row.month}
-                        className="w-full rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
-                      />
-                    </td>
-                    <td className="px-3 py-3">
-                      <input
                         value={row.workTitles}
                         placeholder="Creative work title"
                         onChange={(event) =>
@@ -531,6 +648,16 @@ export function NewReportPage() {
                         }
                         className="w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-sm dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
                       />
+                      {row.url && row.source === 'JIRA' ? (
+                        <a
+                          href={row.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-1 block text-xs text-emerald-700 underline dark:text-emerald-300"
+                        >
+                          Open Jira task
+                        </a>
+                      ) : null}
                     </td>
                     <td className="px-3 py-3">
                       <input
@@ -545,23 +672,43 @@ export function NewReportPage() {
                         }
                         className="w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-sm dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
                       />
+                      {row.stageUrl ? (
+                        <a
+                          href={row.stageUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-1 block text-xs text-emerald-700 underline dark:text-emerald-300"
+                        >
+                          Open Jira stage
+                        </a>
+                      ) : null}
                     </td>
                     <td className="px-3 py-3">
-                      <div className="flex items-center gap-2">
-                        {row.url ? (
+                      <div className="space-y-2">
+                        <textarea
+                          value={row.repoLinks}
+                          placeholder="Repository links"
+                          onChange={(event) =>
+                            updateRowField(
+                              rowIndex,
+                              'repoLinks',
+                              event.target.value,
+                            )
+                          }
+                          rows={Math.max(1, row.repositoryLinks.length)}
+                          className="w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-sm dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+                        />
+                        {row.repositoryLinks.map((link) => (
                           <a
-                            href={row.url}
+                            key={link.url}
+                            href={link.url}
                             target="_blank"
                             rel="noreferrer"
-                            className="text-emerald-700 dark:text-emerald-300 underline"
+                            className="block text-emerald-700 underline dark:text-emerald-300"
                           >
-                            Open
+                            {link.label}
                           </a>
-                        ) : (
-                          <span className="text-sm text-slate-500 dark:text-slate-400">
-                            —
-                          </span>
-                        )}
+                        ))}
                         <button
                           type="button"
                           onClick={() => deleteRow(rowIndex)}
@@ -601,6 +748,85 @@ export function NewReportPage() {
           </button>
         </div>
       </Panel>
+
+      {showFullPreview ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 px-4 py-6">
+          <div className="flex max-h-[90vh] w-full max-w-7xl flex-col rounded-xl bg-white shadow-xl dark:bg-slate-950">
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-800">
+              <div>
+                <h3 className="text-lg font-semibold text-ink dark:text-white">
+                  Full KUP50 table preview
+                </h3>
+                <p className="mt-1 text-sm text-ink-muted dark:text-slate-400">
+                  This is the final data shape for future export and email.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowFullPreview(false)}
+                className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-200 dark:hover:bg-slate-900"
+              >
+                Close
+              </button>
+            </div>
+            <div className="overflow-auto p-5">
+              <table className="min-w-[1600px] w-full border-collapse text-left text-xs">
+                <thead className="bg-slate-100 dark:bg-slate-900">
+                  <tr>
+                    {[
+                      'Employee ID',
+                      'Imię i nazwisko Pracownika / Name Surname',
+                      'Stanowisko służbowe i departament Pracownika / Title',
+                      'Imię i nazwisko Menadżera / Approving manager',
+                      'Okres ewidencji / Month',
+                      'Tytuły / nazwy Wyników Pracy Twórczej / Creative work titles',
+                      'Tytuły / nazwy oraz etap (o ile występuje) Projektu B+R / Creative work stages',
+                      'Wskazanie miejsca przechowywania lub miejsca dostarczenia Pracodawcy Wyników Pracy Twórczej (...) / Repository links',
+                    ].map((header) => (
+                      <th
+                        key={header}
+                        className="border border-slate-200 px-3 py-3 align-top font-semibold text-ink dark:border-slate-700 dark:text-white"
+                      >
+                        {header}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {fullPreviewRows.map((row, index) => (
+                    <tr key={rows[index]?.rowId ?? index}>
+                      <td className="border border-slate-200 px-3 py-3 align-top dark:border-slate-700">
+                        {row.employeeId}
+                      </td>
+                      <td className="border border-slate-200 px-3 py-3 align-top dark:border-slate-700">
+                        {row.name}
+                      </td>
+                      <td className="border border-slate-200 px-3 py-3 align-top dark:border-slate-700">
+                        {row.title}
+                      </td>
+                      <td className="border border-slate-200 px-3 py-3 align-top dark:border-slate-700">
+                        {row.manager}
+                      </td>
+                      <td className="border border-slate-200 px-3 py-3 align-top dark:border-slate-700">
+                        {row.month}
+                      </td>
+                      <td className="border border-slate-200 px-3 py-3 align-top whitespace-pre-wrap dark:border-slate-700">
+                        {row.workTitles}
+                      </td>
+                      <td className="border border-slate-200 px-3 py-3 align-top whitespace-pre-wrap dark:border-slate-700">
+                        {row.workStages}
+                      </td>
+                      <td className="border border-slate-200 px-3 py-3 align-top whitespace-pre-wrap break-words dark:border-slate-700">
+                        {renderRepositoryLinks(row.repoLinks)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {showLeaveModal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4 py-6">

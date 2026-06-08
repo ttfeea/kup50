@@ -1,5 +1,10 @@
 import { WorkItem } from './work-item';
-import { ReportRow, safeString, formatMonthFromDate, formatTitleWithDepartment } from './report-row';
+import {
+  ReportRow,
+  safeString,
+  formatMonthFromDate,
+  formatTitleWithDepartment,
+} from './report-row';
 
 /**
  * Normalize a set of work items and user info into ReportRow entries.
@@ -31,10 +36,16 @@ export function normalizeWorkItemsToRows(
       typeof metadata.workStages === 'string' && metadata.workStages.trim()
         ? metadata.workStages.trim()
         : item.type === 'MR'
-        ? `[MR] ${defaultTitle}`
-        : item.type === 'COMMIT'
-        ? `[Commit] ${defaultTitle}`
-        : `[${item.type}] ${defaultTitle}`;
+          ? `[MR] ${defaultTitle}`
+          : item.type === 'COMMIT'
+            ? `[Commit] ${defaultTitle}`
+            : `[${item.type}] ${defaultTitle}`;
+    const repoLinks =
+      typeof metadata.repoLinks === 'string'
+        ? metadata.repoLinks
+        : item.source === 'JIRA'
+          ? ''
+          : item.url?.trim() || '';
 
     return {
       employeeId: safeString(userInfo.employeeId),
@@ -44,7 +55,7 @@ export function normalizeWorkItemsToRows(
       month: formatMonthFromDate(reportPeriodStart),
       workTitles,
       workStages,
-      repoLinks: item.url?.trim() || '—',
+      repoLinks,
     };
   });
 }
@@ -52,7 +63,10 @@ export function normalizeWorkItemsToRows(
 /**
  * Safely get a field value from a ReportRow, defaulting to '—' if missing.
  */
-export function getRowField(row: ReportRow | undefined, field: keyof ReportRow): string {
+export function getRowField(
+  row: ReportRow | undefined,
+  field: keyof ReportRow,
+): string {
   if (!row) {
     return '—';
   }

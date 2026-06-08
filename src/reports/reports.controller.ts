@@ -53,6 +53,8 @@ export class ReportsController {
       id,
       query.limit,
       query.periodDays,
+      query.periodStart,
+      query.periodEnd,
     );
   }
 

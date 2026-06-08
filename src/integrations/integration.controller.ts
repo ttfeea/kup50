@@ -70,13 +70,17 @@ export class IntegrationController {
     @CurrentUser() user: SafeUser,
     @Query() query: FetchIntegrationItemsDto,
   ) {
-    const since = query.periodDays
-      ? new Date(Date.now() - query.periodDays * 24 * 60 * 60 * 1000)
-      : undefined;
+    const since = query.periodStart
+      ? new Date(query.periodStart)
+      : query.periodDays
+        ? new Date(Date.now() - query.periodDays * 24 * 60 * 60 * 1000)
+        : undefined;
+    const until = query.periodEnd ? new Date(query.periodEnd) : undefined;
 
     return this.integrationService.fetchConfiguredItems(user.id, {
       limit: query.limit,
       since,
+      until,
     });
   }
 }
