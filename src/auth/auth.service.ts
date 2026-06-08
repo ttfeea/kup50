@@ -8,9 +8,10 @@ import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
 
 export type AllowedEmailImportSummary = {
-  totalRows: number;
+  found: number;
   created: number;
-  skippedDuplicates: number;
+  reactivated: number;
+  deactivated: number;
   skippedInvalid: number;
 };
 
@@ -48,7 +49,6 @@ export class AuthService {
     const dataRows = rows[0]?.toLowerCase() === 'email' ? rows.slice(1) : rows;
     const seen = new Set<string>();
     let skippedInvalid = 0;
-    let duplicateRows = 0;
 
     for (const row of dataRows) {
       const columns = row.split(',').map((column) => column.trim());
@@ -59,24 +59,52 @@ export class AuthService {
       }
 
       const email = this.normalizeEmail(columns[0]);
-      if (seen.has(email)) {
-        duplicateRows += 1;
-        continue;
-      }
-
       seen.add(email);
     }
 
     const emails = [...seen];
-    const result = await this.prisma.allowedEmail.createMany({
-      data: emails.map((email) => ({ email })),
-      skipDuplicates: true,
+    const existing = await this.prisma.allowedEmail.findMany({
+      select: { email: true, active: true },
+    });
+    const existingByEmail = new Map(
+      existing.map((entry) => [entry.email, entry.active]),
+    );
+    const missing = emails.filter((email) => !existingByEmail.has(email));
+    const inactive = emails.filter(
+      (email) => existingByEmail.get(email) === false,
+    );
+    const activeMissing = existing
+      .filter((entry) => entry.active && !seen.has(entry.email))
+      .map((entry) => entry.email);
+
+    const changes = await this.prisma.$transaction(async (transaction) => {
+      const created = missing.length
+        ? await transaction.allowedEmail.createMany({
+            data: missing.map((email) => ({ email })),
+            skipDuplicates: true,
+          })
+        : { count: 0 };
+      const reactivated = inactive.length
+        ? await transaction.allowedEmail.updateMany({
+            where: { email: { in: inactive } },
+            data: { active: true },
+          })
+        : { count: 0 };
+      const deactivated = activeMissing.length
+        ? await transaction.allowedEmail.updateMany({
+            where: { email: { in: activeMissing } },
+            data: { active: false },
+          })
+        : { count: 0 };
+
+      return { created, reactivated, deactivated };
     });
 
     return {
-      totalRows: dataRows.length,
-      created: result.count,
-      skippedDuplicates: duplicateRows + emails.length - result.count,
+      found: emails.length,
+      created: changes.created.count,
+      reactivated: changes.reactivated.count,
+      deactivated: changes.deactivated.count,
       skippedInvalid,
     };
   }

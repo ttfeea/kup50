@@ -88,7 +88,6 @@ function parseEmails(csv) {
   const dataRows = rows[0]?.toLowerCase() === 'email' ? rows.slice(1) : rows;
   const emails = new Set();
   let invalid = 0;
-  let duplicateRows = 0;
 
   for (const row of dataRows) {
     const columns = row.split(',').map((column) => column.trim());
@@ -104,11 +103,6 @@ function parseEmails(csv) {
       continue;
     }
 
-    if (emails.has(email)) {
-      duplicateRows += 1;
-      continue;
-    }
-
     emails.add(email);
   }
 
@@ -116,7 +110,6 @@ function parseEmails(csv) {
     totalRows: dataRows.length,
     emails: [...emails],
     invalid,
-    duplicateRows,
   };
 }
 
@@ -129,18 +122,50 @@ async function main() {
     console.warn(`Warning: CSV file is empty: ${csvPath}`);
   }
 
-  const result = await prisma.allowedEmail.createMany({
-    data: parsed.emails.map((email) => ({ email })),
-    skipDuplicates: true,
+  const emailSet = new Set(parsed.emails);
+  const existing = await prisma.allowedEmail.findMany({
+    select: { email: true, active: true },
   });
+  const existingByEmail = new Map(
+    existing.map((entry) => [entry.email, entry.active]),
+  );
+  const missing = parsed.emails.filter((email) => !existingByEmail.has(email));
+  const inactive = parsed.emails.filter(
+    (email) => existingByEmail.get(email) === false,
+  );
+  const activeMissing = existing
+    .filter((entry) => entry.active && !emailSet.has(entry.email))
+    .map((entry) => entry.email);
 
-  const skippedExisting = parsed.emails.length - result.count;
-  const skipped = parsed.invalid + parsed.duplicateRows + skippedExisting;
+  const changes = await prisma.$transaction(async (transaction) => {
+    const created = missing.length
+      ? await transaction.allowedEmail.createMany({
+          data: missing.map((email) => ({ email })),
+          skipDuplicates: true,
+        })
+      : { count: 0 };
+    const reactivated = inactive.length
+      ? await transaction.allowedEmail.updateMany({
+          where: { email: { in: inactive } },
+          data: { active: true },
+        })
+      : { count: 0 };
+    const deactivated = activeMissing.length
+      ? await transaction.allowedEmail.updateMany({
+          where: { email: { in: activeMissing } },
+          data: { active: false },
+        })
+      : { count: 0 };
+
+    return { created, reactivated, deactivated };
+  });
 
   console.log(`CSV file: ${path.relative(rootDir, csvPath)}`);
   console.log(`Emails found: ${parsed.emails.length}`);
-  console.log(`Inserted: ${result.count}`);
-  console.log(`Skipped: ${skipped}`);
+  console.log(`Created: ${changes.created.count}`);
+  console.log(`Reactivated: ${changes.reactivated.count}`);
+  console.log(`Deactivated: ${changes.deactivated.count}`);
+  console.log(`Skipped invalid: ${parsed.invalid}`);
   console.log('Allowed email import completed successfully.');
 }
 

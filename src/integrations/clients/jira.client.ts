@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  BadGatewayException,
+  BadRequestException,
+  Injectable,
+} from '@nestjs/common';
 import { ReportItemSource, WorkItemType } from '@prisma/client';
 import { WorkItem } from '../../common/types/work-item.type';
 import { jiraIssueTypeToWorkItemType } from '../mappers/work-item.mapper';
@@ -26,17 +30,10 @@ export class JiraClient extends BaseClient {
     baseUrl?: string | null;
     accountEmail?: string | null;
   }): Promise<void> {
-    if (!options.baseUrl || !options.accountEmail) {
-      throw new BadRequestException(
-        'Jira integrations require baseUrl and accountEmail',
-      );
-    }
+    const { baseUrl, auth } = this.normalizeOptions(options);
+    this.logger.debug(`Jira validation baseUrl=${baseUrl}`);
 
-    const baseUrl = options.baseUrl.trim().replace(/\/$/, '');
-    const token = options.token.trim();
-    const auth = this.buildAuth(options.accountEmail, token);
-
-    await this.requestJson<unknown>(
+    await this.requestJiraJson<unknown>(
       `${baseUrl}/rest/api/3/myself`,
       {
         headers: {
@@ -44,7 +41,7 @@ export class JiraClient extends BaseClient {
           Accept: 'application/json',
         },
       },
-      'Jira',
+      'validation',
     );
   }
 
@@ -55,25 +52,28 @@ export class JiraClient extends BaseClient {
     limit: number;
     since?: Date;
   }): Promise<WorkItem[]> {
-    if (!options.baseUrl || !options.accountEmail) {
-      throw new BadRequestException(
-        'Jira integrations require baseUrl and accountEmail',
-      );
-    }
+    const { baseUrl, auth } = this.normalizeOptions(options);
+    this.logger.debug(`Jira fetch baseUrl=${baseUrl}`);
 
-    const baseUrl = options.baseUrl.trim().replace(/\/$/, '');
-    const token = options.token.trim();
-    const auth = this.buildAuth(options.accountEmail, token);
+    await this.requestJiraJson<unknown>(
+      `${baseUrl}/rest/api/3/myself`,
+      {
+        headers: {
+          Authorization: `Basic ${auth}`,
+          Accept: 'application/json',
+        },
+      },
+      'validation',
+    );
 
-    // Build JQL with optional date filter
     let jql = 'assignee = currentUser() ORDER BY updated DESC';
     if (options.since) {
       const sinceStr = options.since.toISOString().split('T')[0];
-      jql = `assignee = currentUser() AND updated >= ${sinceStr} ORDER BY updated DESC`;
+      jql = `assignee = currentUser() AND updated >= "${sinceStr}" ORDER BY updated DESC`;
     }
 
-    const response = await this.requestJson<JiraSearchResponse>(
-      `${baseUrl}/rest/api/3/search`,
+    const response = await this.requestJiraJson<JiraSearchResponse>(
+      `${baseUrl}/rest/api/3/search/jql`,
       {
         method: 'POST',
         headers: {
@@ -87,33 +87,109 @@ export class JiraClient extends BaseClient {
           fields: ['summary', 'issuetype', 'status', 'created', 'updated'],
         }),
       },
-      'Jira',
+      'fetch',
     );
 
-    return (response.issues ?? []).map((issue) => {
+    const issues = response.issues ?? [];
+    this.logger.debug(`Jira fetched issueCount=${issues.length}`);
+
+    return issues.map((issue) => {
       const issueTypeName = issue.fields?.issuetype?.name;
 
       return {
         source: ReportItemSource.JIRA,
         type: jiraIssueTypeToWorkItemType(issueTypeName),
         externalId: issue.key,
-        title: issue.fields?.summary ?? issue.key,
+        title: issue.fields?.summary
+          ? `${issue.key} ${issue.fields.summary}`
+          : issue.key,
         url: `${baseUrl}/browse/${issue.key}`,
         activityCreatedAt: issue.fields?.created,
         activityUpdatedAt: issue.fields?.updated,
         metadata: {
-          jiraId: issue.id,
+          id: issue.id,
+          key: issue.key,
           issueType: issueTypeName,
           status: issue.fields?.status?.name,
-          self: issue.self,
+          updated: issue.fields?.updated,
         },
       };
     });
   }
 
-  private buildAuth(accountEmail: string, token: string) {
-    return Buffer.from(`${accountEmail.trim()}:${token.trim()}`).toString(
-      'base64',
+  private normalizeOptions(options: {
+    token: string;
+    baseUrl?: string | null;
+    accountEmail?: string | null;
+  }) {
+    const token = options.token.trim();
+    const accountEmail = options.accountEmail?.trim();
+    const rawBaseUrl = options.baseUrl?.trim();
+
+    if (!accountEmail) {
+      throw new BadRequestException('Jira account email is required');
+    }
+    if (!rawBaseUrl) {
+      throw new BadRequestException('Jira base URL is required');
+    }
+    if (!token) {
+      throw new BadRequestException('Jira API token is required');
+    }
+
+    let parsedBaseUrl: URL;
+    try {
+      parsedBaseUrl = new URL(rawBaseUrl);
+    } catch {
+      throw new BadRequestException(
+        'Jira base URL must be a valid HTTPS URL',
+      );
+    }
+
+    if (parsedBaseUrl.protocol !== 'https:') {
+      throw new BadRequestException('Jira base URL must use HTTPS');
+    }
+
+    return {
+      baseUrl: parsedBaseUrl.origin,
+      auth: Buffer.from(`${accountEmail}:${token}`).toString('base64'),
+    };
+  }
+
+  private async requestJiraJson<T>(
+    url: string,
+    init: RequestInit,
+    operation: 'validation' | 'fetch',
+  ): Promise<T> {
+    let response: Response;
+
+    try {
+      response = await fetch(url, init);
+    } catch {
+      throw new BadGatewayException(
+        'Could not reach Jira. Verify the base URL and network connection.',
+      );
+    }
+
+    const body = await response.text();
+    this.logger.debug(
+      `Jira ${operation} responseStatus=${response.status}`,
     );
+    if (!response.ok) {
+      const message =
+        response.status === 401 || response.status === 403
+          ? 'Jira authentication failed. Verify the account email and API token.'
+          : response.status === 404
+            ? 'Jira API endpoint was not found. Verify the base URL.'
+            : `Jira request failed with status ${response.status}.`;
+      throw new BadGatewayException(message);
+    }
+
+    try {
+      return body ? (JSON.parse(body) as T) : ({} as T);
+    } catch {
+      throw new BadGatewayException(
+        'Jira returned an invalid response. Verify the base URL.',
+      );
+    }
   }
 }

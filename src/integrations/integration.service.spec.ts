@@ -88,6 +88,17 @@ describe('IntegrationService', () => {
     expect(result.message).toContain('Token saved');
   });
 
+  it('requires Jira account email before saving a token', async () => {
+    await expect(
+      service.storeToken('user-1', ReportItemSource.JIRA, {
+        token: 'api-token',
+        baseUrl: 'https://company.atlassian.net',
+      }),
+    ).rejects.toThrow('Jira account email is required');
+
+    expect(prisma.integrationToken.upsert).not.toHaveBeenCalled();
+  });
+
   it('does not auto-validate stored tokens when listing integrations', async () => {
     prisma.integrationToken.findMany.mockResolvedValue([
       {

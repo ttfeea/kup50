@@ -63,6 +63,15 @@ export class IntegrationService {
   ) {
     const normalizedDto = this.normalizeStoredTokenInput(dto);
 
+    if (provider === ReportItemSource.JIRA) {
+      if (!normalizedDto.accountEmail) {
+        throw new BadRequestException('Jira account email is required');
+      }
+      if (!normalizedDto.baseUrl) {
+        throw new BadRequestException('Jira base URL is required');
+      }
+    }
+
     const token = await this.prisma.integrationToken.upsert({
       where: {
         userId_provider: {
