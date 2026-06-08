@@ -1,69 +1,92 @@
-import {
-  ConflictException,
-  ForbiddenException,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { User } from '@prisma/client';
-import * as bcrypt from 'bcrypt';
 import { JwtPayload } from '../common/types/jwt-payload.type';
 import { toSafeUser } from '../common/utils/user.mapper';
+import { PrismaService } from '../database/prisma.service';
 import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
+
+export type AllowedEmailImportSummary = {
+  totalRows: number;
+  created: number;
+  skippedDuplicates: number;
+  skippedInvalid: number;
+};
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
-    private readonly configService: ConfigService,
+    private readonly prisma: PrismaService,
   ) {}
 
-  async register(dto: RegisterDto) {
-    this.assertCompanyEmail(dto.email);
-
-    const email = dto.email.toLowerCase();
-    const existing = await this.usersService.findByEmail(email);
-    if (existing) {
-      throw new ConflictException('Email already registered');
-    }
-
-    const passwordHash = await bcrypt.hash(dto.password, 10);
-    const user = await this.usersService.create({
-      email,
-      password: passwordHash,
-      role: dto.role,
+  async login(dto: LoginDto) {
+    const email = this.normalizeEmail(dto.email);
+    const allowed = await this.prisma.allowedEmail.findUnique({
+      where: { email },
     });
 
-    return this.buildAuthResponse(user);
-  }
-
-  async login(dto: LoginDto) {
-    this.assertCompanyEmail(dto.email);
-
-    const user = await this.usersService.findByEmail(dto.email.toLowerCase());
-    if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+    if (!allowed?.active) {
+      throw new ForbiddenException('Access denied');
     }
 
-    const valid = await bcrypt.compare(dto.password, user.password);
-    if (!valid) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
+    const user =
+      (await this.usersService.findByEmail(email)) ??
+      (await this.usersService.create({ email }));
 
     return this.buildAuthResponse(user);
   }
 
-  private assertCompanyEmail(email: string): void {
-    const domain = this.configService.get<string>('auth.companyEmailDomain');
-    if (!domain || !email.toLowerCase().endsWith(domain.toLowerCase())) {
-      throw new ForbiddenException(
-        `Only company email addresses (${domain}) are allowed`,
-      );
+  async importAllowedEmails(csv: string): Promise<AllowedEmailImportSummary> {
+    const rows = csv
+      .replace(/^\uFEFF/, '')
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const dataRows = rows[0]?.toLowerCase() === 'email' ? rows.slice(1) : rows;
+    const seen = new Set<string>();
+    let skippedInvalid = 0;
+    let duplicateRows = 0;
+
+    for (const row of dataRows) {
+      const columns = row.split(',').map((column) => column.trim());
+
+      if (columns.length !== 1 || !this.isValidEmail(columns[0])) {
+        skippedInvalid += 1;
+        continue;
+      }
+
+      const email = this.normalizeEmail(columns[0]);
+      if (seen.has(email)) {
+        duplicateRows += 1;
+        continue;
+      }
+
+      seen.add(email);
     }
+
+    const emails = [...seen];
+    const result = await this.prisma.allowedEmail.createMany({
+      data: emails.map((email) => ({ email })),
+      skipDuplicates: true,
+    });
+
+    return {
+      totalRows: dataRows.length,
+      created: result.count,
+      skippedDuplicates: duplicateRows + emails.length - result.count,
+      skippedInvalid,
+    };
+  }
+
+  private normalizeEmail(email: string): string {
+    return email.trim().toLowerCase();
+  }
+
+  private isValidEmail(email: string): boolean {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   }
 
   private buildAuthResponse(user: User) {

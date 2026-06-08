@@ -4,7 +4,6 @@ import { PrismaService } from '../database/prisma.service';
 
 export interface CreateUserData {
   email: string;
-  password: string;
   role?: UserRole;
 }
 
@@ -14,6 +13,7 @@ export interface UpdateUserData {
   position?: string | null;
   department?: string | null;
   managerName?: string | null;
+  managerEmail?: string | null;
 }
 
 @Injectable()
@@ -24,7 +24,6 @@ export class UsersService {
     return this.prisma.user.create({
       data: {
         email: data.email,
-        password: data.password,
         role: data.role ?? UserRole.employee,
       },
     });
@@ -39,6 +38,7 @@ export class UsersService {
         position: data.position,
         department: data.department,
         managerName: data.managerName,
+        managerEmail: data.managerEmail,
       },
     });
   }

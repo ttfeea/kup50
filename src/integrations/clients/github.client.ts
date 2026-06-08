@@ -83,16 +83,10 @@ export class GitHubClient extends BaseClient {
       this.fetchRepositoryCommits(baseUrl, token, commitBudget, options.since),
     ]);
 
-    const merged = this.mergeWorkItems(
+    return this.mergeWorkItems(
       this.filterItemsBySince([...issues, ...events, ...repoCommits], options.since),
       options.limit,
     );
-
-    this.logger.debug(
-      `GitHub fetched issues=${issues.length}, events=${events.length}, commits=${repoCommits.length}, mapped=${merged.length}, since=${options.since ?? 'none'}`,
-    );
-
-    return merged;
   }
 
   private async fetchIssues(
@@ -232,10 +226,7 @@ export class GitHubClient extends BaseClient {
         activityUpdatedAt: commit.commit.author?.date ?? event.created_at,
         metadata: { repo: repoName, sha: commit.sha, eventId: event.id },
       }));
-    } catch (error) {
-      this.logger.debug(
-        `GitHub compare failed for ${repoName}: ${error instanceof Error ? error.message : 'unknown'}`,
-      );
+    } catch {
       return [];
     }
   }
@@ -313,10 +304,7 @@ export class GitHubClient extends BaseClient {
             },
           });
         }
-      } catch (error) {
-        this.logger.debug(
-          `Skipping commits for ${repo.full_name}: ${error instanceof Error ? error.message : 'unknown'}`,
-        );
+      } catch {
       }
     }
 

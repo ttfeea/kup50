@@ -21,8 +21,6 @@ export class UsersController {
     @CurrentUser() user: SafeUser,
     @Body() body: UpdateUserDto,
   ) {
-    const updated = await this.usersService.updateById(user.id, body);
-    const { password: _password, ...safe } = updated;
-    return safe;
+    return this.usersService.updateById(user.id, body);
   }
 }

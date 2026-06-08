@@ -8,17 +8,9 @@ export abstract class BaseClient {
     init: RequestInit,
     providerName: string,
   ): Promise<T> {
-    this.logger.debug(
-      `Calling ${providerName} endpoint=${url} method=${init.method ?? 'GET'}`,
-    );
-
     const response = await fetch(url, init);
 
     const body = await response.text();
-
-    this.logger.debug(
-      `${providerName} response status=${response.status} body=${body.slice(0, 250)}`,
-    );
 
     if (!response.ok) {
       throw new BadGatewayException({

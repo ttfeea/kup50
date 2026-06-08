@@ -7,24 +7,12 @@ import {
   getReport,
   ReportDto,
 } from '../api/reports';
-import { useAuth } from '../contexts/AuthContext';
 import { PageHeader } from '../components/ui/PageHeader';
-
-type AuthUserProfile = {
-  id: string;
-  name: string;
-  email: string;
-  role: 'employee' | 'manager';
-  employeeId: string;
-  position: string;
-  department: string;
-  managerName: string;
-};
 import { Panel } from '../components/ui/Panel';
+import { useAuth } from '../contexts/AuthContext';
 import { ReportRow } from '../types/report-row';
 import { normalizeWorkItemsToRows } from '../types/report-normalizer';
 
-// Update a single field in a row
 function updateRowField(
   rows: ReportRow[],
   rowIndex: number,
@@ -68,7 +56,7 @@ export function ReportDetailPage() {
   const navigate = useNavigate();
   const auth = useAuth();
   const accessToken = auth.accessToken;
-  const user = auth.user as AuthUserProfile | null;
+  const user = auth.user;
   const [report, setReport] = useState<ReportDto | null>(null);
   const [rows, setRows] = useState<ReportRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -95,7 +83,6 @@ export function ReportDetailPage() {
         if (!cancelled) {
           setReport(nextReport);
 
-          // Normalize work items into report rows
           const userInfo: {
             employeeId: string;
             name: string;
@@ -113,12 +100,6 @@ export function ReportDetailPage() {
             userInfo,
             nextReport.periodStart,
           );
-
-          if (normalized.length > 0) {
-            console.debug(
-              `[ReportDetailPage] Normalized ${nextReport.workItems?.length ?? 0} items into ${normalized.length} rows`,
-            );
-          }
 
           setRows(normalized);
         }

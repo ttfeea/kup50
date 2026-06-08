@@ -22,7 +22,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
         const options: JwtModuleOptions = {
           secret,
           signOptions: {
-            expiresIn: configService.get('auth.jwtExpiresIn') ?? '7d',
+            expiresIn: configService.get('auth.jwtExpiresIn') ?? '60d',
           },
         };
         return options;

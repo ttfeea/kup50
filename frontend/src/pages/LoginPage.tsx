@@ -8,8 +8,10 @@ export function LoginPage() {
   const { login } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('marta.kowalska@precisely.com');
-  const [password, setPassword] = useState('');
+  const [lastEmail, setLastEmail] = useState(() =>
+    localStorage.getItem('lastEmail'),
+  );
+  const [email, setEmail] = useState(lastEmail ?? '');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -19,7 +21,7 @@ export function LoginPage() {
     setLoading(true);
 
     try {
-      await login(email, password);
+      await login(email.trim());
       navigate('/dashboard');
     } catch (loginError) {
       setError(
@@ -61,6 +63,22 @@ export function LoginPage() {
           </button>
         </div>
         <form className="space-y-4" onSubmit={handleLogin}>
+          {lastEmail ? (
+            <div className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-200">
+              <p className="font-medium">Welcome back</p>
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.removeItem('lastEmail');
+                  setLastEmail(null);
+                  setEmail('');
+                }}
+                className="mt-1 text-emerald-700 underline-offset-4 hover:underline dark:text-emerald-300"
+              >
+                Use another email
+              </button>
+            </div>
+          ) : null}
           <label className="block">
             <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
               Email
@@ -68,17 +86,7 @@ export function LoginPage() {
             <input
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="mt-1 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
-            />
-          </label>
-          <label className="block">
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-              Password
-            </span>
-            <input
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              type="password"
+              type="email"
               className="mt-1 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
             />
           </label>

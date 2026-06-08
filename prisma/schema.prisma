@@ -37,19 +37,28 @@ enum WorkItemType {
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
-  password  String
   role      UserRole @default(employee)
   createdAt DateTime @default(now()) @map("created_at")
   fullname  String?
   position  String?
   department String?
   managerName String?
+  managerEmail String? @map("manager_email")
   employeeId String? @map("employee_id")
 
   reports Report[]
   integrationTokens IntegrationToken[]
 
   @@map("users")
+}
+
+model AllowedEmail {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("allowed_emails")
 }
 
 model IntegrationToken {

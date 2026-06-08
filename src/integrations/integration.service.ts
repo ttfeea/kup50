@@ -62,9 +62,6 @@ export class IntegrationService {
     dto: StoreIntegrationTokenDto,
   ) {
     const normalizedDto = this.normalizeStoredTokenInput(dto);
-    this.logger.debug(
-      `Saving integration token for provider=${provider}, tokenLength=${normalizedDto.token.length}, baseUrl=${normalizedDto.baseUrl ?? 'none'}`,
-    );
 
     const token = await this.prisma.integrationToken.upsert({
       where: {
@@ -143,10 +140,6 @@ export class IntegrationService {
       return this.toMissingStatus(provider);
     }
 
-    this.logger.debug(
-      `Checking integration provider=${provider}, tokenLength=${token.token.length}`,
-    );
-
     const status = await this.validateStoredToken(token);
     await this.persistConnectionStatus(token.id, status);
     const updated = await this.prisma.integrationToken.findUniqueOrThrow({
@@ -213,13 +206,7 @@ export class IntegrationService {
       return [] as WorkItem[];
     });
 
-    const items = this.mergeWorkItems(workItems, limit);
-
-    this.logger.debug(
-      `Integration preview fetched providers=${tokens.length}, rawItems=${workItems.length}, mappedItems=${items.length}, since=${options?.since ?? 'none'}`,
-    );
-
-    return { items };
+    return { items: this.mergeWorkItems(workItems, limit) };
   }
 
   private mergeWorkItems(items: WorkItem[], limit: number) {

@@ -18,6 +18,7 @@ type AuthUser = {
   position: string;
   department: string;
   managerName: string;
+  managerEmail: string;
 };
 
 type AuthContextValue = {
@@ -25,7 +26,7 @@ type AuthContextValue = {
   accessToken: string | null;
   isAuthenticated: boolean;
   isBootstrapping: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string) => Promise<void>;
   logout: () => void;
   updateProfile: (profile: {
     fullname?: string;
@@ -33,6 +34,7 @@ type AuthContextValue = {
     position?: string;
     department?: string;
     managerName?: string;
+    managerEmail?: string;
   }) => Promise<void>;
 };
 
@@ -47,6 +49,7 @@ function mapUser(user: {
   position?: string | null;
   department?: string | null;
   managerName?: string | null;
+  managerEmail?: string | null;
 }): AuthUser {
   return {
     id: user.id,
@@ -57,6 +60,7 @@ function mapUser(user: {
     position: user.position?.trim() || '',
     department: user.department?.trim() || '',
     managerName: user.managerName?.trim() || '',
+    managerEmail: user.managerEmail?.trim() || '',
   };
 }
 
@@ -87,6 +91,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         position: parsed.position || '',
         department: parsed.department || '',
         managerName: parsed.managerName || '',
+        managerEmail: parsed.managerEmail || '',
       };
     } catch {
       return null;
@@ -111,6 +116,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       position?: string;
       department?: string;
       managerName?: string;
+      managerEmail?: string;
     }) => {
       if (!accessToken) {
         throw new Error('Not authenticated');
@@ -168,12 +174,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
       accessToken,
       isAuthenticated: Boolean(user && accessToken),
       isBootstrapping,
-      login: async (email: string, password: string) => {
-        const response = await loginRequest(email, password);
+      login: async (email: string) => {
+        const response = await loginRequest(email);
         const nextUser = mapUser(response.user);
 
         localStorage.setItem('kup50-access-token', response.accessToken);
         localStorage.setItem('kup50-user', JSON.stringify(nextUser));
+        localStorage.setItem('lastEmail', nextUser.email);
         setAccessToken(response.accessToken);
         setUser(nextUser);
         setIsBootstrapping(false);

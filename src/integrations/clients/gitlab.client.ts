@@ -2,7 +2,6 @@ import {
   BadGatewayException,
   BadRequestException,
   Injectable,
-  Logger,
 } from '@nestjs/common';
 import { ReportItemSource, WorkItemType } from '@prisma/client';
 import { WorkItem } from '../../common/types/work-item.type';
@@ -65,8 +64,6 @@ type GitLabCommit = {
 
 @Injectable()
 export class GitLabClient extends BaseClient {
-  protected readonly logger = new Logger(GitLabClient.name);
-
   async validateToken(options: {
     token: string;
     baseUrl?: string | null;
@@ -87,11 +84,7 @@ export class GitLabClient extends BaseClient {
     limit: number;
     since?: Date;
   }): Promise<WorkItem[]> {
-    const inputBaseUrl = options.baseUrl?.trim() || 'https://gitlab.com';
     const apiBaseUrl = this.getApiBaseUrl(options.baseUrl);
-    this.logger.debug(
-      `GitLab inputBaseUrl=${inputBaseUrl} normalizedBaseUrl=${apiBaseUrl} since=${options.since ?? 'none'}`,
-    );
     const token = options.token.trim();
     const commitBudget = Math.max(15, Math.floor(options.limit * 0.4));
     const otherBudget = options.limit - commitBudget;
@@ -100,10 +93,6 @@ export class GitLabClient extends BaseClient {
     const authenticatedUser = await this.fetchAuthenticatedUser(apiBaseUrl, token);
     const memberProjects = await this.fetchMemberProjects(apiBaseUrl, token);
 
-    this.logger.debug(
-      `GitLab identity userId=${authenticatedUser.id} username=${authenticatedUser.username ?? '-'} name=${authenticatedUser.name ?? '-'}`,
-    );
-
     const [issues, mergeRequests, events, commits] = await Promise.all([
       this.fetchIssues(apiBaseUrl, token, perOther, authenticatedUser, memberProjects, options.since),
       this.fetchMergeRequests(apiBaseUrl, token, perOther, authenticatedUser, options.since),
@@ -111,16 +100,10 @@ export class GitLabClient extends BaseClient {
       this.fetchRecentCommits(apiBaseUrl, token, commitBudget, authenticatedUser, memberProjects, options.since),
     ]);
 
-    const merged = this.mergeWorkItems(
+    return this.mergeWorkItems(
       [...issues, ...mergeRequests, ...events, ...commits],
       options.limit,
     );
-
-    this.logger.debug(
-      `GitLab fetched issues=${issues.length}, mergeRequests=${mergeRequests.length}, events=${events.length}, commits=${commits.length}, mapped=${merged.length}, sampleTitles=${merged.slice(0, 5).map((item) => item.title).join(' | ')}`,
-    );
-
-    return merged;
   }
 
   private async fetchIssues(
@@ -144,10 +127,6 @@ export class GitLabClient extends BaseClient {
     const issues = this.dedupeByKey([...authored, ...assigned], (item) => `${item.project_id}:${item.iid}`)
       .filter((item) => this.isRelevantGitLabItem(item.project_id, memberProjects));
 
-    this.logger.debug(
-      `GitLab issues authored=${authored.length} assigned=${assigned.length} filtered=${issues.length} sample=${JSON.stringify(issues[0] ?? null).slice(0, 300)}`,
-    );
-
     return issues.map((issue) => this.mapIssue(issue, WorkItemType.ISSUE));
   }
 
@@ -170,10 +149,6 @@ export class GitLabClient extends BaseClient {
 
     const mergeRequests = this.dedupeByKey([...authored, ...assigned], (item) => `${item.project_id}:${item.iid}`)
       .filter((item) => item?.id != null);
-
-    this.logger.debug(
-      `GitLab mergeRequests authored=${authored.length} assigned=${assigned.length} filtered=${mergeRequests.length} sample=${JSON.stringify(mergeRequests[0] ?? null).slice(0, 300)}`,
-    );
 
     return mergeRequests.map((item) => this.mapIssue(item, WorkItemType.MR));
   }
@@ -266,10 +241,6 @@ export class GitLabClient extends BaseClient {
   ) {
     const projects = memberProjects.slice(0, 8);
 
-    this.logger.debug(
-      `GitLab memberProjects=${projects.length} sample=${JSON.stringify(projects[0] ?? null).slice(0, 300)}`,
-    );
-
     const perProject = Math.max(5, Math.ceil(limit / Math.max(projects.length, 1)));
     const sinceParam = since ? `&since=${since.toISOString()}` : '';
 
@@ -285,10 +256,6 @@ export class GitLabClient extends BaseClient {
     const allCommits = commitLists.flat();
     const filteredCommits = allCommits.filter((commit) =>
       this.matchesAuthenticatedGitLabUser(commit, user),
-    );
-
-    this.logger.debug(
-      `GitLab commits beforeFilter=${allCommits.length} afterFilter=${filteredCommits.length}`,
     );
 
     return filteredCommits.map((commit, index) => ({
@@ -384,7 +351,6 @@ export class GitLabClient extends BaseClient {
   }
 
   private async requestGitLabJson<T>(url: string, token: string): Promise<T> {
-    this.logger.debug(`GitLab request url=${url} authMode=PRIVATE-TOKEN`);
     const privateTokenResponse = await fetch(url, {
       headers: this.buildGitLabHeaders(token, 'PRIVATE-TOKEN'),
       redirect: 'manual',
@@ -395,7 +361,6 @@ export class GitLabClient extends BaseClient {
     }
 
     if (this.shouldRetryWithBearer(privateTokenResponse.status)) {
-      this.logger.debug(`GitLab request url=${url} authMode=Bearer fallback`);
       const bearerTokenResponse = await fetch(url, {
         headers: this.buildGitLabHeaders(token, 'Bearer'),
         redirect: 'manual',
@@ -440,10 +405,6 @@ export class GitLabClient extends BaseClient {
   ): Promise<T> {
     const contentType = response.headers.get('content-type') ?? '';
     const body = await response.text();
-
-    this.logger.debug(
-      `GitLab response status=${response.status} contentType=${contentType} bodyLength=${body.length} bodyPreview=${body.slice(0, 300)}`,
-    );
 
     if (!contentType.includes('application/json')) {
       throw new BadGatewayException({

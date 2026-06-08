@@ -1,20 +1,20 @@
-# KUP50 API — Phase 1
+# KUP50 API - Phase 1
 
-NestJS REST API for internal employee reporting with email/password auth and JWT.
+NestJS REST API for internal employee reporting with email allowlist auth and JWT.
 
 ## Stack
 
 - NestJS 11 + TypeScript
 - PostgreSQL + Prisma
-- JWT + bcrypt
+- JWT
 
 ## API (Phase 1)
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | GET | `/health` | No | Health check |
-| POST | `/auth/register` | No | Register (company email only) |
-| POST | `/auth/login` | No | Login |
+| POST | `/auth/login` | No | Login with an allowed email |
+| POST | `/auth/allowed-emails/import` | No | Import allowed emails from CSV |
 | GET | `/users/me` | JWT | Current user |
 | POST | `/reports` | JWT | Create report |
 | GET | `/reports` | JWT | List own reports |
@@ -28,7 +28,7 @@ NestJS REST API for internal employee reporting with email/password auth and JWT
    Copy-Item .env.example .env
    ```
 
-   Required: `DATABASE_URL`, `JWT_SECRET`, `COMPANY_EMAIL_DOMAIN`.
+   Required: `DATABASE_URL`, `JWT_SECRET`.
 
 2. Install and migrate:
 
@@ -42,6 +42,19 @@ NestJS REST API for internal employee reporting with email/password auth and JWT
    ```powershell
    npm run start:dev
    ```
+
+## Import allowed emails
+
+```http
+POST /auth/allowed-emails/import
+Content-Type: application/json
+
+{
+  "csv": "email\njohn@example.com\nanna@example.com"
+}
+```
+
+The import creates missing allowlist entries, skips duplicates, and returns a summary.
 
 ## Create report
 

@@ -11,6 +11,7 @@ type LoginResponse = {
     position?: string | null;
     department?: string | null;
     managerName?: string | null;
+    managerEmail?: string | null;
   };
 };
 
@@ -20,12 +21,13 @@ export type UpdateMeInput = {
   position?: string;
   department?: string;
   managerName?: string;
+  managerEmail?: string;
 };
 
-export function loginRequest(email: string, password: string) {
+export function loginRequest(email: string) {
   return apiRequest<LoginResponse>('/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email }),
   });
 }
 

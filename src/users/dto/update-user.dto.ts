@@ -20,4 +20,8 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   managerName?: string;
+
+  @IsOptional()
+  @IsString()
+  managerEmail?: string;
 }

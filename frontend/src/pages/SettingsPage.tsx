@@ -28,9 +28,10 @@ export function SettingsPage() {
     setPosition(user.position);
     setDepartment(user.department);
     setManagerName(user.managerName);
+    setManagerEmail(user.managerEmail);
   }, [user]);
 
-  async function handleSave(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
     setError(null);
@@ -43,6 +44,7 @@ export function SettingsPage() {
         position: position.trim(),
         department: department.trim(),
         managerName: managerName.trim(),
+        managerEmail: managerEmail.trim(),
       });
       setMessage('Profile saved successfully.');
     } catch (saveError) {
@@ -164,7 +166,7 @@ export function SettingsPage() {
                   disabled={saving}
                   className="w-full rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  {saving ? 'Saving…' : 'Save profile'}
+                  {saving ? 'Saving...' : 'Save profile'}
                 </button>
               </div>
             </form>
@@ -218,7 +220,7 @@ export function SettingsPage() {
                 className="mt-1 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
               />
               <p className="mt-2 text-xs text-ink-muted dark:text-slate-400">
-                This field is prepared for future report email delivery configuration.
+                This profile field is saved with your account.
               </p>
             </label>
           </div>
