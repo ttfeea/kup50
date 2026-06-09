@@ -101,6 +101,12 @@ describe('JiraClient', () => {
             headers: { 'content-type': 'application/json' },
           },
         ),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
       );
 
     const items = await client.fetchRecentItems({
@@ -133,8 +139,76 @@ describe('JiraClient', () => {
           status: 'In Progress',
           issueType: 'Task',
           updated: '2026-06-08T10:00:00.000Z',
+          jiraRemoteLinks: [],
         },
       }),
+    ]);
+  });
+
+  it('extracts repository URLs from Jira remote links', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ accountId: 'account-1' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            issues: [
+              {
+                id: '10001',
+                key: 'KUP-42',
+                fields: { summary: 'Prepare monthly report' },
+              },
+            ],
+          }),
+          {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify([
+            {
+              object: {
+                title: 'Report pull request',
+                url: 'https://github.com/example/report/pull/42',
+              },
+            },
+            {
+              object: {
+                title: 'Design document',
+                url: 'https://docs.example.com/report',
+              },
+            },
+          ]),
+          {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          },
+        ),
+      );
+
+    const items = await client.fetchRecentItems({
+      token: 'api-token',
+      baseUrl: 'https://company.atlassian.net',
+      accountEmail: 'employee@example.com',
+      limit: 10,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://company.atlassian.net/rest/api/3/issue/KUP-42/remotelink',
+      expect.anything(),
+    );
+    expect(items[0].metadata?.jiraRemoteLinks).toEqual([
+      {
+        label: 'Report pull request',
+        url: 'https://github.com/example/report/pull/42',
+      },
     ]);
   });
 });

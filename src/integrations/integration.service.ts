@@ -267,16 +267,32 @@ export class IntegrationService {
   ): WorkItem {
     const jiraKey = jiraItem.externalId.trim();
     const jiraName = jiraItem.title.replace(jiraKey, '').trim();
-    const matches = mergeRequests.filter((item) =>
-      this.matchesJiraItem(item, jiraKey, jiraName),
-    );
-    const repositoryLinks =
-      matches.length > 4
-        ? this.buildProviderSearchLinks(matches, jiraKey)
-        : matches.flatMap((item) =>
-            item.url ? [{ label: item.title || item.url, url: item.url }] : [],
-          );
     const metadata = jiraItem.metadata ?? {};
+    const jiraRemoteLinks = Array.isArray(metadata.jiraRemoteLinks)
+      ? metadata.jiraRemoteLinks.filter(
+          (link): link is { label: string; url: string } =>
+            typeof link === 'object' &&
+            link !== null &&
+            typeof link.label === 'string' &&
+            typeof link.url === 'string',
+        )
+      : [];
+    const matches =
+      jiraRemoteLinks.length > 0
+        ? []
+        : mergeRequests.filter((item) =>
+            this.matchesJiraItem(item, jiraKey, jiraName),
+          );
+    const repositoryLinks =
+      jiraRemoteLinks.length > 0
+        ? jiraRemoteLinks
+        : matches.length > 4
+          ? this.buildProviderSearchLinks(matches, jiraKey)
+          : matches.flatMap((item) =>
+              item.url
+                ? [{ label: item.title || item.url, url: item.url }]
+                : [],
+            );
     const stageName =
       typeof metadata.stageName === 'string' ? metadata.stageName : '';
 

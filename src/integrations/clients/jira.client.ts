@@ -27,6 +27,18 @@ type JiraSearchResponse = {
   }>;
 };
 
+type JiraRemoteLink = {
+  object?: {
+    title?: string;
+    url?: string;
+  };
+};
+
+type RepositoryLink = {
+  label: string;
+  url: string;
+};
+
 @Injectable()
 export class JiraClient extends BaseClient {
   async validateToken(options: {
@@ -109,34 +121,104 @@ export class JiraClient extends BaseClient {
     const issues = response.issues ?? [];
     this.logger.debug(`Jira fetched issueCount=${issues.length}`);
 
-    return issues.map((issue) => {
-      const issueTypeName = issue.fields?.issuetype?.name;
-      const parent = issue.fields?.parent;
-      const stageKey = parent?.key;
-      const stageName = parent?.fields?.summary ?? stageKey;
+    return Promise.all(
+      issues.map(async (issue) => {
+        const issueTypeName = issue.fields?.issuetype?.name;
+        const parent = issue.fields?.parent;
+        const stageKey = parent?.key;
+        const stageName = parent?.fields?.summary ?? stageKey;
+        const jiraRemoteLinks = await this.fetchRepositoryRemoteLinks(
+          baseUrl,
+          auth,
+          issue.key,
+        );
 
-      return {
-        source: ReportItemSource.JIRA,
-        type: jiraIssueTypeToWorkItemType(issueTypeName),
-        externalId: issue.key,
-        title: issue.fields?.summary
-          ? `${issue.key} ${issue.fields.summary}`
-          : issue.key,
-        url: `${baseUrl}/browse/${issue.key}`,
-        activityCreatedAt: issue.fields?.created,
-        activityUpdatedAt: issue.fields?.updated,
-        metadata: {
-          id: issue.id,
-          key: issue.key,
-          issueType: issueTypeName,
-          status: issue.fields?.status?.name,
-          updated: issue.fields?.updated,
-          stageKey,
-          stageName,
-          stageUrl: stageKey ? `${baseUrl}/browse/${stageKey}` : undefined,
+        return {
+          source: ReportItemSource.JIRA,
+          type: jiraIssueTypeToWorkItemType(issueTypeName),
+          externalId: issue.key,
+          title: issue.fields?.summary
+            ? `${issue.key} ${issue.fields.summary}`
+            : issue.key,
+          url: `${baseUrl}/browse/${issue.key}`,
+          activityCreatedAt: issue.fields?.created,
+          activityUpdatedAt: issue.fields?.updated,
+          metadata: {
+            id: issue.id,
+            key: issue.key,
+            issueType: issueTypeName,
+            status: issue.fields?.status?.name,
+            updated: issue.fields?.updated,
+            stageKey,
+            stageName,
+            stageUrl: stageKey ? `${baseUrl}/browse/${stageKey}` : undefined,
+            jiraRemoteLinks,
+          },
+        };
+      }),
+    );
+  }
+
+  private async fetchRepositoryRemoteLinks(
+    baseUrl: string,
+    auth: string,
+    issueKey: string,
+  ): Promise<RepositoryLink[]> {
+    try {
+      const links = await this.requestJiraJson<JiraRemoteLink[]>(
+        `${baseUrl}/rest/api/3/issue/${encodeURIComponent(issueKey)}/remotelink`,
+        {
+          headers: {
+            Authorization: `Basic ${auth}`,
+            Accept: 'application/json',
+          },
         },
-      };
-    });
+        'fetch',
+      );
+      const byUrl = new Map<string, RepositoryLink>();
+
+      for (const link of links) {
+        const url = link.object?.url?.trim();
+        if (!url || !this.isRepositoryUrl(url)) {
+          continue;
+        }
+
+        byUrl.set(url, {
+          label: link.object?.title?.trim() || url,
+          url,
+        });
+      }
+
+      return [...byUrl.values()];
+    } catch (error) {
+      this.logger.warn(
+        `Jira remote links fetch failed issue=${issueKey} reason=${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return [];
+    }
+  }
+
+  private isRepositoryUrl(value: string) {
+    try {
+      const url = new URL(value);
+      const hostname = url.hostname.toLowerCase();
+      const pathname = url.pathname.toLowerCase();
+
+      return (
+        /\/(pull|pull-requests|merge_requests)\//.test(pathname) ||
+        hostname === 'github.com' ||
+        hostname.endsWith('.github.com') ||
+        hostname === 'gitlab.com' ||
+        hostname.endsWith('.gitlab.com') ||
+        hostname === 'bitbucket.org' ||
+        hostname.endsWith('.bitbucket.org') ||
+        /(^|[.-])(github|gitlab|bitbucket)([.-]|$)/.test(hostname)
+      );
+    } catch {
+      return false;
+    }
   }
 
   private normalizeOptions(options: {

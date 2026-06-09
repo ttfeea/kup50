@@ -261,6 +261,107 @@ describe('IntegrationService', () => {
     ]);
   });
 
+  it('uses Jira remote links instead of title or branch matches', async () => {
+    prisma.integrationToken.findMany.mockResolvedValue([
+      {
+        id: 'jira-token',
+        userId: 'user-1',
+        provider: ReportItemSource.JIRA,
+        token: 'jira',
+        baseUrl: 'https://company.atlassian.net',
+        accountEmail: 'dev@example.com',
+      },
+      {
+        id: 'github-token',
+        userId: 'user-1',
+        provider: ReportItemSource.GITHUB,
+        token: 'github',
+        baseUrl: null,
+      },
+    ]);
+    jiraClient.fetchRecentItems.mockResolvedValue([
+      {
+        source: ReportItemSource.JIRA,
+        type: 'TASK',
+        externalId: 'KUP-42',
+        title: 'KUP-42 Implement report flow',
+        metadata: {
+          jiraRemoteLinks: [
+            {
+              label: 'Linked pull request',
+              url: 'https://github.com/example/app/pull/42',
+            },
+          ],
+        },
+      },
+    ]);
+    gitHubClient.fetchRecentItems.mockResolvedValue([
+      {
+        source: ReportItemSource.GITHUB,
+        type: 'PR',
+        externalId: '99',
+        title: 'KUP-42 different pull request',
+        url: 'https://github.com/example/app/pull/99',
+      },
+    ]);
+
+    const result = await service.fetchConfiguredItems('user-1');
+
+    expect(result.items[0].metadata?.repositoryLinks).toEqual([
+      {
+        label: 'Linked pull request',
+        url: 'https://github.com/example/app/pull/42',
+      },
+    ]);
+    expect(result.items[0].metadata?.repoLinks).toBe(
+      'https://github.com/example/app/pull/42',
+    );
+  });
+
+  it('leaves repository links empty when Jira and fallback have no links', async () => {
+    prisma.integrationToken.findMany.mockResolvedValue([
+      {
+        id: 'jira-token',
+        userId: 'user-1',
+        provider: ReportItemSource.JIRA,
+        token: 'jira',
+        baseUrl: 'https://company.atlassian.net',
+        accountEmail: 'dev@example.com',
+      },
+      {
+        id: 'gitlab-token',
+        userId: 'user-1',
+        provider: ReportItemSource.GITLAB,
+        token: 'gitlab',
+        baseUrl: 'https://gitlab.example.com',
+      },
+    ]);
+    jiraClient.fetchRecentItems.mockResolvedValue([
+      {
+        source: ReportItemSource.JIRA,
+        type: 'TASK',
+        externalId: 'KUP-42',
+        title: 'KUP-42 Implement report flow',
+        metadata: { jiraRemoteLinks: [] },
+      },
+    ]);
+    gitLabClient.fetchRecentItems.mockResolvedValue([
+      {
+        source: ReportItemSource.GITLAB,
+        type: 'MR',
+        externalId: '1:7',
+        title: 'Unrelated change',
+        url: 'https://gitlab.example.com/mr/7',
+        metadata: { sourceBranch: 'feature/OTHER-1' },
+      },
+    ]);
+
+    const result = await service.fetchConfiguredItems('user-1');
+
+    expect(result.items[0].metadata?.repositoryLinks).toEqual([]);
+    expect(result.items[0].metadata?.repoLinks).toBe('');
+  });
+
   it('uses one provider search link when more than four MRs match', async () => {
     prisma.integrationToken.findMany.mockResolvedValue([
       {
