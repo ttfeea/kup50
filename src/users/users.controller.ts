@@ -17,10 +17,7 @@ export class UsersController {
 
   @Patch('me')
   @UseGuards(JwtAuthGuard)
-  async updateMe(
-    @CurrentUser() user: SafeUser,
-    @Body() body: UpdateUserDto,
-  ) {
+  async updateMe(@CurrentUser() user: SafeUser, @Body() body: UpdateUserDto) {
     return this.usersService.updateById(user.id, body);
   }
 }

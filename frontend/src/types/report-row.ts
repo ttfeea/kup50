@@ -25,7 +25,8 @@ export function formatTitleWithDepartment(
   title?: string,
   department?: string,
 ): string {
-  const titleValue = typeof title === 'string' && title.trim() ? title.trim() : '';
+  const titleValue =
+    typeof title === 'string' && title.trim() ? title.trim() : '';
   const departmentValue =
     typeof department === 'string' && department.trim()
       ? department.trim()

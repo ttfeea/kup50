@@ -3,7 +3,7 @@ import {
   BadRequestException,
   Injectable,
 } from '@nestjs/common';
-import { ReportItemSource, WorkItemType } from '@prisma/client';
+import { ReportItemSource } from '@prisma/client';
 import { WorkItem } from '../../common/types/work-item.type';
 import { jiraIssueTypeToWorkItemType } from '../mappers/work-item.mapper';
 import { BaseClient } from './base-client';
@@ -47,18 +47,13 @@ export class JiraClient extends BaseClient {
     accountEmail?: string | null;
   }): Promise<void> {
     const { baseUrl, auth } = this.normalizeOptions(options);
-    this.logger.debug(`Jira validation baseUrl=${baseUrl}`);
 
-    await this.requestJiraJson<unknown>(
-      `${baseUrl}/rest/api/3/myself`,
-      {
-        headers: {
-          Authorization: `Basic ${auth}`,
-          Accept: 'application/json',
-        },
+    await this.requestJiraJson<unknown>(`${baseUrl}/rest/api/3/myself`, {
+      headers: {
+        Authorization: `Basic ${auth}`,
+        Accept: 'application/json',
       },
-      'validation',
-    );
+    });
   }
 
   async fetchRecentItems(options: {
@@ -70,18 +65,13 @@ export class JiraClient extends BaseClient {
     until?: Date;
   }): Promise<WorkItem[]> {
     const { baseUrl, auth } = this.normalizeOptions(options);
-    this.logger.debug(`Jira fetch baseUrl=${baseUrl}`);
 
-    await this.requestJiraJson<unknown>(
-      `${baseUrl}/rest/api/3/myself`,
-      {
-        headers: {
-          Authorization: `Basic ${auth}`,
-          Accept: 'application/json',
-        },
+    await this.requestJiraJson<unknown>(`${baseUrl}/rest/api/3/myself`, {
+      headers: {
+        Authorization: `Basic ${auth}`,
+        Accept: 'application/json',
       },
-      'validation',
-    );
+    });
 
     let jql =
       'assignee = currentUser() AND statusCategory = Done ORDER BY updated DESC';
@@ -115,11 +105,9 @@ export class JiraClient extends BaseClient {
           ],
         }),
       },
-      'fetch',
     );
 
     const issues = response.issues ?? [];
-    this.logger.debug(`Jira fetched issueCount=${issues.length}`);
 
     return Promise.all(
       issues.map(async (issue) => {
@@ -173,7 +161,6 @@ export class JiraClient extends BaseClient {
             Accept: 'application/json',
           },
         },
-        'fetch',
       );
       const byUrl = new Map<string, RepositoryLink>();
 
@@ -257,11 +244,7 @@ export class JiraClient extends BaseClient {
     };
   }
 
-  private async requestJiraJson<T>(
-    url: string,
-    init: RequestInit,
-    operation: 'validation' | 'fetch',
-  ): Promise<T> {
+  private async requestJiraJson<T>(url: string, init: RequestInit): Promise<T> {
     let response: Response;
 
     try {
@@ -273,7 +256,6 @@ export class JiraClient extends BaseClient {
     }
 
     const body = await response.text();
-    this.logger.debug(`Jira ${operation} responseStatus=${response.status}`);
     if (!response.ok) {
       const message =
         response.status === 401 || response.status === 403

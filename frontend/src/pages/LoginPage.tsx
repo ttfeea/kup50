@@ -62,7 +62,12 @@ export function LoginPage() {
             )}
           </button>
         </div>
-        <form className="space-y-4" onSubmit={handleLogin}>
+        <form
+          className="space-y-4"
+          onSubmit={(event) => {
+            void handleLogin(event);
+          }}
+        >
           {lastEmail ? (
             <div className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-200">
               <p className="font-medium">Welcome back</p>

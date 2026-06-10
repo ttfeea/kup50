@@ -14,6 +14,9 @@ export interface UpdateUserData {
   department?: string | null;
   managerName?: string | null;
   managerEmail?: string | null;
+  reportReceiverEmail?: string | null;
+  reportEmailSubjectTemplate?: string | null;
+  reportEmailBodyTemplate?: string | null;
 }
 
 @Injectable()
@@ -39,6 +42,9 @@ export class UsersService {
         department: data.department,
         managerName: data.managerName,
         managerEmail: data.managerEmail,
+        reportReceiverEmail: data.reportReceiverEmail,
+        reportEmailSubjectTemplate: data.reportEmailSubjectTemplate,
+        reportEmailBodyTemplate: data.reportEmailBodyTemplate,
       },
     });
   }

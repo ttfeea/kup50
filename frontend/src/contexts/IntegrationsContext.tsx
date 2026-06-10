@@ -7,10 +7,7 @@ import {
   useMemo,
   useState,
 } from 'react';
-import {
-  IntegrationStatusDto,
-  listIntegrations,
-} from '../api/integrations';
+import { IntegrationStatusDto, listIntegrations } from '../api/integrations';
 import { useAuth } from './AuthContext';
 
 type IntegrationsContextValue = {

@@ -59,18 +59,3 @@ export function normalizeWorkItemsToRows(
     };
   });
 }
-
-/**
- * Safely get a field value from a ReportRow, defaulting to '—' if missing.
- */
-export function getRowField(
-  row: ReportRow | undefined,
-  field: keyof ReportRow,
-): string {
-  if (!row) {
-    return '—';
-  }
-
-  const value = row[field];
-  return safeString(value);
-}

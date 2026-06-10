@@ -21,14 +21,14 @@ export type SaveIntegrationTokenInput = {
   accountEmail?: string;
 };
 
-export function listIntegrations(authToken: string | null) {
+export function listIntegrations(authToken: string) {
   return apiRequest<IntegrationStatusDto[]>('/integrations', {
     token: authToken,
   });
 }
 
 export function saveIntegrationToken(
-  authToken: string | null,
+  authToken: string,
   provider: IntegrationProvider,
   body: SaveIntegrationTokenInput,
 ) {
@@ -40,7 +40,7 @@ export function saveIntegrationToken(
 }
 
 export function checkIntegration(
-  authToken: string | null,
+  authToken: string,
   provider: IntegrationProvider,
 ) {
   return apiRequest<IntegrationStatusDto>(`/integrations/${provider}/check`, {
@@ -50,7 +50,7 @@ export function checkIntegration(
 }
 
 export function disconnectIntegration(
-  authToken: string | null,
+  authToken: string,
   provider: IntegrationProvider,
 ) {
   return apiRequest<IntegrationStatusDto>(`/integrations/${provider}`, {

@@ -9,7 +9,6 @@ describe('AppController (e2e)', () => {
 
   beforeEach(async () => {
     process.env.JWT_SECRET = 'test-jwt-secret';
-    process.env.COMPANY_EMAIL_DOMAIN = '@precisely.com';
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],

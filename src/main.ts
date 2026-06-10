@@ -5,9 +5,13 @@ import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const configService = app.get(ConfigService);
+  const frontendUrls = configService.get<string[]>('app.frontendUrls', [
+    'http://localhost:5173',
+  ]);
 
   app.enableCors({
-    origin: true,
+    origin: frontendUrls,
     credentials: true,
   });
 
@@ -19,10 +23,9 @@ async function bootstrap() {
     }),
   );
 
-  const configService = app.get(ConfigService);
   const port = configService.get<number>('app.port', 3000);
 
   await app.listen(port);
 }
 
-bootstrap();
+void bootstrap();

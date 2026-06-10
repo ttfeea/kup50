@@ -200,7 +200,7 @@ export function IntegrationSettingsPanel({
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-base font-semibold text-ink dark:text-white">
-            Work sources
+            Integration settings
           </h3>
           <p className="mt-1 text-sm text-ink-muted dark:text-slate-400">
             Save a token, then use Check connection to verify. See each provider
