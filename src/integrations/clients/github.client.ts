@@ -76,7 +76,7 @@ export class GitHubClient extends BaseClient {
               `${baseUrl}/repos/${repoPath}/pulls/${item.number}`,
               { headers },
               'GitHub',
-            ).catch(() => ({}) as GitHubPullRequest)
+            ).catch((): GitHubPullRequest => ({}))
           : {};
 
         return {

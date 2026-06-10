@@ -3,31 +3,23 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   confirmReport,
   deleteDraftReport,
+  downloadReportXlsx,
+  EmailDraftDto,
   formatReportPeriod,
+  getEmailDraft,
   getReport,
   ReportDto,
 } from '../api/reports';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Panel } from '../components/ui/Panel';
+import {
+  EMAIL_DRAFT_FALLBACK_NOTE,
+  XLSX_ATTACHMENT_NOTE,
+} from '../constants/emailTemplates';
 import { useAuth } from '../contexts/AuthContext';
 import { ReportRow } from '../types/report-row';
 import { normalizeWorkItemsToRows } from '../types/report-normalizer';
-
-function updateRowField(
-  rows: ReportRow[],
-  rowIndex: number,
-  field: keyof ReportRow,
-  value: string,
-): ReportRow[] {
-  const updated = [...rows];
-  if (updated[rowIndex]) {
-    updated[rowIndex] = {
-      ...updated[rowIndex],
-      [field]: value,
-    };
-  }
-  return updated;
-}
+import { buildEmailDraftMailto } from '../utils/emailDraft';
 
 function renderRepoLinks(repoLinks: string) {
   return repoLinks.split('\n').map((link, idx) => {
@@ -51,6 +43,27 @@ function renderRepoLinks(repoLinks: string) {
   });
 }
 
+async function copyPlainText(value: string) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = value;
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+  const copied = document.execCommand('copy');
+  textarea.remove();
+
+  if (!copied) {
+    throw new Error('Copy failed');
+  }
+}
+
 export function ReportDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -62,6 +75,14 @@ export function ReportDetailPage() {
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [generatingEmail, setGeneratingEmail] = useState(false);
+  const [downloadingXlsx, setDownloadingXlsx] = useState(false);
+  const [emailDraft, setEmailDraft] = useState<EmailDraftDto | null>(null);
+  const [copyMessage, setCopyMessage] = useState<string | null>(null);
+  const [emailActionMessage, setEmailActionMessage] = useState<string | null>(
+    null,
+  );
+  const [showEmailFallback, setShowEmailFallback] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -70,6 +91,8 @@ export function ReportDetailPage() {
       return;
     }
 
+    const authToken = accessToken;
+    const reportId = id;
     let cancelled = false;
 
     async function loadReport() {
@@ -79,7 +102,7 @@ export function ReportDetailPage() {
       setRows([]);
 
       try {
-        const nextReport = await getReport(accessToken, id!);
+        const nextReport = await getReport(authToken, reportId);
         if (!cancelled) {
           setReport(nextReport);
 
@@ -87,11 +110,13 @@ export function ReportDetailPage() {
             employeeId: string;
             name: string;
             title: string;
+            department: string;
             manager: string;
           } = {
             employeeId: user?.employeeId ?? '',
             name: user?.name ?? '',
             title: user?.position ?? '',
+            department: user?.department ?? '',
             manager: user?.managerName ?? '',
           };
 
@@ -169,6 +194,135 @@ export function ReportDetailPage() {
     }
   }
 
+  async function handleGenerateEmail() {
+    if (!accessToken || !report) {
+      return;
+    }
+
+    setGeneratingEmail(true);
+    setError(null);
+    setCopyMessage(null);
+    setEmailActionMessage(null);
+    setShowEmailFallback(false);
+
+    try {
+      setEmailDraft(await getEmailDraft(accessToken, report.id));
+    } catch (draftError) {
+      setError(
+        draftError instanceof Error
+          ? draftError.message
+          : 'Could not generate email draft.',
+      );
+    } finally {
+      setGeneratingEmail(false);
+    }
+  }
+
+  async function handleCopyTable() {
+    if (!emailDraft) {
+      return;
+    }
+
+    const container = document.createElement('div');
+    container.innerHTML = emailDraft.tablePreviewHtml;
+    const plainText = Array.from(container.querySelectorAll('tr'))
+      .map((row) =>
+        Array.from(row.querySelectorAll('th, td'))
+          .map((cell) => cell.textContent?.trim() ?? '')
+          .join('\t'),
+      )
+      .join('\n');
+
+    try {
+      if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            'text/html': new Blob([emailDraft.tablePreviewHtml], {
+              type: 'text/html',
+            }),
+            'text/plain': new Blob([plainText], { type: 'text/plain' }),
+          }),
+        ]);
+      } else {
+        await copyPlainText(plainText);
+      }
+      setCopyMessage('Table copied.');
+    } catch {
+      try {
+        await copyPlainText(plainText);
+        setCopyMessage('Table copied as plain text.');
+      } catch {
+        setCopyMessage('Could not copy the table.');
+      }
+    }
+  }
+
+  function handleOpenEmailDraft() {
+    if (!emailDraft) {
+      return;
+    }
+
+    const {
+      receiver: receiverEmail,
+      mailtoUrl,
+      isTooLong,
+    } = buildEmailDraftMailto(
+      emailDraft.receiverEmail,
+      emailDraft.subject,
+      emailDraft.body,
+    );
+    setShowEmailFallback(true);
+
+    if (!receiverEmail) {
+      setEmailActionMessage(
+        'Receiver email is missing. Add it in Settings before opening the draft.',
+      );
+      return;
+    }
+
+    if (isTooLong) {
+      setEmailActionMessage(
+        'The full email body is too long for some mail apps. A short draft will open; copy the full body or table manually.',
+      );
+    } else {
+      setEmailActionMessage(
+        'Opening your default mail app. If nothing happens, use the copy buttons below.',
+      );
+    }
+
+    window.location.href = mailtoUrl;
+  }
+
+  async function copyEmailField(label: string, value: string) {
+    try {
+      await copyPlainText(value);
+      setCopyMessage(`${label} copied.`);
+    } catch {
+      setCopyMessage(`Could not copy ${label.toLowerCase()}.`);
+    }
+  }
+
+  async function handleDownloadXlsx() {
+    if (!accessToken || !report || !emailDraft) {
+      return;
+    }
+
+    setDownloadingXlsx(true);
+    setError(null);
+
+    try {
+      await downloadReportXlsx(accessToken, report.id, emailDraft.xlsxFileName);
+    } catch (downloadError) {
+      setError(
+        downloadError instanceof Error
+          ? downloadError.message
+          : 'Could not download XLSX report.',
+      );
+    } finally {
+      setDownloadingXlsx(false);
+    }
+  }
+
   if (loading) {
     return (
       <p className="text-sm text-ink-muted dark:text-slate-400">
@@ -198,6 +352,13 @@ export function ReportDetailPage() {
     : report.status === 'DRAFT'
       ? 'Delete draft'
       : 'Delete report';
+  const mailtoDraft = emailDraft
+    ? buildEmailDraftMailto(
+        emailDraft.receiverEmail,
+        emailDraft.subject,
+        emailDraft.body,
+      )
+    : null;
 
   return (
     <div className="space-y-6">
@@ -206,6 +367,16 @@ export function ReportDetailPage() {
         description={formatReportPeriod(report)}
         actions={
           <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                void handleGenerateEmail();
+              }}
+              disabled={generatingEmail || report.workItems.length === 0}
+              className="rounded-md border border-emerald-600 bg-white px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-500/10"
+            >
+              {generatingEmail ? 'Generating...' : 'Generate Email Preview'}
+            </button>
             {report.status === 'DRAFT' ? (
               <button
                 type="button"
@@ -239,6 +410,205 @@ export function ReportDetailPage() {
       ) : null}
 
       <div className="space-y-6">
+        {emailDraft ? (
+          <Panel>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 className="text-base font-semibold text-ink dark:text-white">
+                  Email preview
+                </h2>
+                <p className="mt-1 text-sm text-ink-muted dark:text-slate-400">
+                  Review the message, then open a real draft in your default
+                  mail app.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setEmailDraft(null);
+                  setEmailActionMessage(null);
+                  setCopyMessage(null);
+                  setShowEmailFallback(false);
+                }}
+                className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold dark:border-slate-800"
+              >
+                Close preview
+              </button>
+            </div>
+            <dl className="mt-4 grid gap-4 text-sm">
+              <div>
+                <dt className="text-ink-muted dark:text-slate-400">Receiver</dt>
+                <dd className="mt-1 flex flex-wrap items-center gap-2">
+                  <span>{emailDraft.receiverEmail || '—'}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void copyEmailField(
+                        'Recipient',
+                        emailDraft.receiverEmail,
+                      );
+                    }}
+                    className="rounded-md border border-slate-200 px-2 py-1 text-xs font-medium hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900"
+                  >
+                    Copy recipient
+                  </button>
+                </dd>
+              </div>
+              <div>
+                <dt className="text-ink-muted dark:text-slate-400">Subject</dt>
+                <dd className="mt-1 flex flex-wrap items-start gap-2">
+                  <span className="min-w-0 flex-1">{emailDraft.subject}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void copyEmailField('Subject', emailDraft.subject);
+                    }}
+                    className="rounded-md border border-slate-200 px-2 py-1 text-xs font-medium hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900"
+                  >
+                    Copy subject
+                  </button>
+                </dd>
+              </div>
+              <div>
+                <dt className="text-ink-muted dark:text-slate-400">Body</dt>
+                <dd className="mt-1 whitespace-pre-wrap rounded-md bg-slate-50 p-3 dark:bg-slate-900">
+                  {emailDraft.body}
+                </dd>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void copyEmailField('Body', emailDraft.body);
+                  }}
+                  className="mt-2 rounded-md border border-slate-200 px-2 py-1 text-xs font-medium hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900"
+                >
+                  Copy body
+                </button>
+              </div>
+            </dl>
+            <div className="mt-5 overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+              <div
+                className="min-w-[1500px] [&_table]:w-full [&_table]:border-collapse [&_th]:border [&_th]:border-slate-200 [&_th]:bg-slate-100 [&_th]:p-3 [&_th]:text-left [&_th]:align-top [&_td]:border [&_td]:border-slate-200 [&_td]:p-3 [&_td]:align-top [&_a]:text-emerald-700 [&_a]:underline dark:[&_th]:border-slate-700 dark:[&_th]:bg-slate-900 dark:[&_td]:border-slate-700 dark:[&_a]:text-emerald-300"
+                dangerouslySetInnerHTML={{
+                  __html: emailDraft.tablePreviewHtml,
+                }}
+              />
+            </div>
+            <div className="mt-4 space-y-1 text-sm text-ink-muted dark:text-slate-400">
+              <p>{XLSX_ATTACHMENT_NOTE}</p>
+              <p>
+                Automatyczne dodawanie załącznika wymaga integracji z
+                Outlook/Gmail API. Obecnie możesz otworzyć szkic wiadomości i
+                ręcznie dodać XLSX.
+              </p>
+            </div>
+            {copyMessage ? (
+              <p className="mt-2 text-sm text-emerald-700 dark:text-emerald-300">
+                {copyMessage}
+              </p>
+            ) : null}
+            {emailActionMessage ? (
+              <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+                {emailActionMessage}
+              </p>
+            ) : null}
+            {showEmailFallback ? (
+              <div className="mt-3 rounded-md border border-slate-200 p-3 dark:border-slate-800">
+                <p className="text-sm text-ink-muted dark:text-slate-400">
+                  {EMAIL_DRAFT_FALLBACK_NOTE}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void copyEmailField(
+                        'Recipient',
+                        mailtoDraft?.receiver ?? '',
+                      );
+                    }}
+                    className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900"
+                  >
+                    Copy receiver
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void copyEmailField(
+                        'Subject',
+                        mailtoDraft?.subject ?? '',
+                      );
+                    }}
+                    className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900"
+                  >
+                    Copy subject
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void copyEmailField('Body', mailtoDraft?.body ?? '');
+                    }}
+                    className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900"
+                  >
+                    Copy body
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const { receiver, subject, body } = mailtoDraft ?? {
+                        receiver: '',
+                        subject: '',
+                        body: '',
+                      };
+                      void copyEmailField(
+                        'Email text',
+                        `To: ${receiver}\nSubject: ${subject}\n\n${body}`,
+                      );
+                    }}
+                    className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900"
+                  >
+                    Copy all email text
+                  </button>
+                </div>
+              </div>
+            ) : null}
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleOpenEmailDraft}
+                className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+              >
+                Open Email Draft
+              </button>
+              {mailtoDraft?.mailtoUrl ? (
+                <a
+                  href={mailtoDraft.mailtoUrl}
+                  className="rounded-md border border-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-500/10"
+                >
+                  Open draft manually
+                </a>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => {
+                  void handleCopyTable();
+                }}
+                className="rounded-md border border-slate-200 px-4 py-2 text-sm font-semibold hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900"
+              >
+                Copy Table
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void handleDownloadXlsx();
+                }}
+                disabled={downloadingXlsx}
+                className="rounded-md border border-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-70 dark:text-emerald-300 dark:hover:bg-emerald-500/10"
+              >
+                {downloadingXlsx ? 'Downloading...' : 'Download XLSX'}
+              </button>
+            </div>
+          </Panel>
+        ) : null}
+
         <Panel>
           <h2 className="text-base font-semibold text-ink dark:text-white">
             Report metadata
@@ -315,104 +685,33 @@ export function ReportDetailPage() {
                         key={rowIndex}
                         className="hover:bg-slate-50 dark:hover:bg-slate-900/50"
                       >
-                        {/* Column 1: Employee ID (editable) */}
                         <td className="border border-slate-200 dark:border-slate-700 px-2 py-2">
-                          <input
-                            type="text"
-                            value={row.employeeId}
-                            onChange={(e) =>
-                              setRows(
-                                updateRowField(
-                                  rows,
-                                  rowIndex,
-                                  'employeeId',
-                                  e.target.value,
-                                ),
-                              )
-                            }
-                            className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded px-1 py-1 text-xs"
-                          />
+                          {row.employeeId}
                         </td>
-
-                        {/* Column 2: Name (editable) */}
                         <td className="border border-slate-200 dark:border-slate-700 px-2 py-2">
-                          <input
-                            type="text"
-                            value={row.name}
-                            onChange={(e) =>
-                              setRows(
-                                updateRowField(
-                                  rows,
-                                  rowIndex,
-                                  'name',
-                                  e.target.value,
-                                ),
-                              )
-                            }
-                            className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded px-1 py-1 text-xs"
-                          />
+                          {row.name}
                         </td>
-
-                        {/* Column 3: Title (editable) */}
                         <td className="border border-slate-200 dark:border-slate-700 px-2 py-2">
-                          <input
-                            type="text"
-                            value={row.title}
-                            onChange={(e) =>
-                              setRows(
-                                updateRowField(
-                                  rows,
-                                  rowIndex,
-                                  'title',
-                                  e.target.value,
-                                ),
-                              )
-                            }
-                            className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded px-1 py-1 text-xs"
-                          />
+                          {row.title}
                         </td>
-
-                        {/* Column 4: Manager (editable) */}
                         <td className="border border-slate-200 dark:border-slate-700 px-2 py-2">
-                          <input
-                            type="text"
-                            value={row.manager}
-                            onChange={(e) =>
-                              setRows(
-                                updateRowField(
-                                  rows,
-                                  rowIndex,
-                                  'manager',
-                                  e.target.value,
-                                ),
-                              )
-                            }
-                            className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded px-1 py-1 text-xs"
-                          />
+                          {row.manager}
                         </td>
-
-                        {/* Column 5: Month (read-only, auto-generated) */}
                         <td className="border border-slate-200 dark:border-slate-700 px-2 py-2 bg-slate-50 dark:bg-slate-900/30">
                           <div className="text-xs text-ink dark:text-slate-200">
                             {row.month}
                           </div>
                         </td>
-
-                        {/* Column 6: Work Titles (read-only, GitLab data) */}
                         <td className="border border-slate-200 dark:border-slate-700 px-2 py-2 bg-slate-50 dark:bg-slate-900/30 max-w-xs">
                           <div className="text-xs text-ink dark:text-slate-200 whitespace-normal break-words">
                             {row.workTitles}
                           </div>
                         </td>
-
-                        {/* Column 7: Work Stages (read-only, GitLab data) */}
                         <td className="border border-slate-200 dark:border-slate-700 px-2 py-2 bg-slate-50 dark:bg-slate-900/30 max-w-xs">
                           <div className="text-xs text-ink dark:text-slate-200 whitespace-normal break-words">
                             {row.workStages}
                           </div>
                         </td>
-
-                        {/* Column 8: Repository Links (read-only, GitLab data) */}
                         <td className="border border-slate-200 dark:border-slate-700 px-2 py-2 bg-slate-50 dark:bg-slate-900/30 max-w-xs">
                           <div className="text-xs text-ink dark:text-slate-200 whitespace-pre-wrap break-words">
                             {renderRepoLinks(row.repoLinks)}

@@ -25,14 +25,6 @@ type RepositoryLink = {
   url: string;
 };
 
-type AuthUserForReport = {
-  employeeId: string;
-  name: string;
-  position: string;
-  department: string;
-  managerName: string;
-};
-
 type BuilderRow = ReportRow & {
   rowId: string;
   source: WorkItem['source'];
@@ -180,7 +172,7 @@ function generateManualRow(
 
 export function NewReportPage() {
   const auth = useAuth();
-  const user = auth.user as AuthUserForReport | null;
+  const user = auth.user;
   const accessToken = auth.accessToken;
   const navigate = useNavigate();
   const [rows, setRows] = useState<BuilderRow[]>([]);
@@ -286,7 +278,6 @@ export function NewReportPage() {
           ? new Date(`${customPeriodEnd}T23:59:59.999`).toISOString()
           : undefined,
       );
-      const safeItems = Array.isArray(items) ? items : [];
       const userInfo = currentUser
         ? (() => {
             const employeeId = currentUser.employeeId;
@@ -300,12 +291,12 @@ export function NewReportPage() {
         : {};
       setRows((current) => [
         ...current.filter((row) => row.source === 'MANUAL'),
-        ...buildReportRows(safeItems, userInfo, reportPeriodStart),
+        ...buildReportRows(items, userInfo, reportPeriodStart),
       ]);
       markDirty();
       setMessage(
-        safeItems.length
-          ? `Loaded ${safeItems.length} integration work items.`
+        items.length
+          ? `Loaded ${items.length} integration work items.`
           : 'No integration items returned. Check connections in Settings.',
       );
     } catch (fetchError) {

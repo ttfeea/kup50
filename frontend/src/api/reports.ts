@@ -1,5 +1,5 @@
 import { WorkItem, WorkItemSource, WorkItemType } from '../types/work-item';
-import { apiRequest } from './client';
+import { apiRequest, downloadApiFile } from './client';
 
 export type ReportStatus = 'DRAFT' | 'SUBMITTED';
 
@@ -45,16 +45,24 @@ export type CreateManualWorkItemInput = {
   description?: string;
 };
 
-export function listReports(authToken: string | null) {
+export type EmailDraftDto = {
+  receiverEmail: string;
+  subject: string;
+  body: string;
+  tablePreviewHtml: string;
+  xlsxFileName: string;
+};
+
+export function listReports(authToken: string) {
   return apiRequest<ReportDto[]>('/reports', { token: authToken });
 }
 
-export function getReport(authToken: string | null, reportId: string) {
+export function getReport(authToken: string, reportId: string) {
   return apiRequest<ReportDto>(`/reports/${reportId}`, { token: authToken });
 }
 
 export function createReport(
-  authToken: string | null,
+  authToken: string,
   periodDays = 30,
   periodStart?: string,
   periodEnd?: string,
@@ -71,21 +79,8 @@ export function createReport(
   });
 }
 
-export function fetchReportPreviewItems(
-  authToken: string | null,
-  reportId: string,
-  limit = 100,
-  periodDays?: number,
-) {
-  const periodQuery = periodDays ? `&periodDays=${periodDays}` : '';
-  return apiRequest<{ items: WorkItem[] }>(
-    `/reports/${reportId}/fetch-items?limit=${limit}${periodQuery}`,
-    { token: authToken },
-  );
-}
-
 export async function previewIntegrationItems(
-  authToken: string | null,
+  authToken: string,
   limit = 100,
   periodDays = 30,
   periodStart?: string,
@@ -100,15 +95,11 @@ export async function previewIntegrationItems(
     { token: authToken },
   );
 
-  if (Array.isArray(response)) {
-    return response as WorkItem[];
-  }
-
-  return Array.isArray(response?.items) ? response.items : [];
+  return response.items;
 }
 
 export function attachReportItems(
-  authToken: string | null,
+  authToken: string,
   reportId: string,
   items: AttachWorkItemInput[],
 ) {
@@ -120,7 +111,7 @@ export function attachReportItems(
 }
 
 export function addManualWorkItem(
-  authToken: string | null,
+  authToken: string,
   reportId: string,
   body: CreateManualWorkItemInput,
 ) {
@@ -131,14 +122,32 @@ export function addManualWorkItem(
   });
 }
 
-export function confirmReport(authToken: string | null, reportId: string) {
+export function confirmReport(authToken: string, reportId: string) {
   return apiRequest<ReportDto>(`/reports/${reportId}/confirm`, {
     method: 'POST',
     token: authToken,
   });
 }
 
-export function deleteDraftReport(authToken: string | null, reportId: string) {
+export function getEmailDraft(authToken: string, reportId: string) {
+  return apiRequest<EmailDraftDto>(`/reports/${reportId}/email-draft`, {
+    token: authToken,
+  });
+}
+
+export async function downloadReportXlsx(
+  authToken: string,
+  reportId: string,
+  fileName: string,
+) {
+  return downloadApiFile(
+    `/reports/${reportId}/export-xlsx`,
+    fileName,
+    authToken,
+  );
+}
+
+export function deleteDraftReport(authToken: string, reportId: string) {
   return apiRequest<{ deleted: boolean; reportId: string }>(
     `/reports/${reportId}`,
     {

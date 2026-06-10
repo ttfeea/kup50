@@ -1,8 +1,10 @@
-import { ReportItem, ReportItemSource, WorkItemType } from '@prisma/client';
+import { ReportItem, WorkItemType } from '@prisma/client';
 import { WorkItem } from '../../common/types/work-item.type';
 import { AttachReportItemDto } from '../../reports/dto/attach-report-items.dto';
 
-export function mapWorkItemsToAttachDto(items: WorkItem[]): AttachReportItemDto[] {
+export function mapWorkItemsToAttachDto(
+  items: WorkItem[],
+): AttachReportItemDto[] {
   return items.map((item) => ({
     source: item.source,
     type: item.type,
@@ -17,7 +19,9 @@ export function mapWorkItemsToAttachDto(items: WorkItem[]): AttachReportItemDto[
 
 export function mapReportItemToWorkItem(item: ReportItem): WorkItem {
   const metadata =
-    item.metadata && typeof item.metadata === 'object' && !Array.isArray(item.metadata)
+    item.metadata &&
+    typeof item.metadata === 'object' &&
+    !Array.isArray(item.metadata)
       ? (item.metadata as Record<string, unknown>)
       : undefined;
 
@@ -61,7 +65,9 @@ export function buildWorkItemMetadata(
   return Object.keys(metadata).length ? metadata : undefined;
 }
 
-export function jiraIssueTypeToWorkItemType(issueTypeName?: string): WorkItemType {
+export function jiraIssueTypeToWorkItemType(
+  issueTypeName?: string,
+): WorkItemType {
   const normalized = issueTypeName?.trim().toLowerCase() ?? '';
 
   if (normalized.includes('task') || normalized.includes('story')) {

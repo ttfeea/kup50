@@ -2,8 +2,21 @@ import { FormEvent, useEffect, useState } from 'react';
 import { IntegrationSettingsPanel } from '../components/integrations/IntegrationSettingsPanel';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Panel } from '../components/ui/Panel';
+import {
+  DEFAULT_EMAIL_BODY,
+  DEFAULT_EMAIL_SUBJECT,
+} from '../constants/emailTemplates';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+
+const TEMPLATE_VARIABLES = [
+  { label: 'Month', value: '{{month}}' },
+  { label: 'Full name', value: '{{fullname}}' },
+  { label: 'Employee ID', value: '{{employeeId}}' },
+  { label: 'Manager', value: '{{managerName}}' },
+  { label: 'Period start', value: '{{periodStart}}' },
+  { label: 'Period end', value: '{{periodEnd}}' },
+] as const;
 
 export function SettingsPage() {
   const { theme, setTheme } = useTheme();
@@ -16,7 +29,17 @@ export function SettingsPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [savingEmail, setSavingEmail] = useState(false);
   const [managerEmail, setManagerEmail] = useState('');
+  const [receiverEmail, setReceiverEmail] = useState('');
+  const [emailSubjectTemplate, setEmailSubjectTemplate] = useState(
+    DEFAULT_EMAIL_SUBJECT,
+  );
+  const [emailBodyTemplate, setEmailBodyTemplate] =
+    useState(DEFAULT_EMAIL_BODY);
+  const [templateTarget, setTemplateTarget] = useState<'subject' | 'body'>(
+    'subject',
+  );
 
   useEffect(() => {
     if (!user) {
@@ -29,6 +52,11 @@ export function SettingsPage() {
     setDepartment(user.department);
     setManagerName(user.managerName);
     setManagerEmail(user.managerEmail);
+    setReceiverEmail(user.reportReceiverEmail || user.managerEmail);
+    setEmailSubjectTemplate(
+      user.reportEmailSubjectTemplate || DEFAULT_EMAIL_SUBJECT,
+    );
+    setEmailBodyTemplate(user.reportEmailBodyTemplate || DEFAULT_EMAIL_BODY);
   }, [user]);
 
   async function handleSave(event: FormEvent<HTMLFormElement>) {
@@ -58,6 +86,40 @@ export function SettingsPage() {
     }
   }
 
+  async function handleSaveEmail(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSavingEmail(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      await updateProfile({
+        reportReceiverEmail: receiverEmail.trim(),
+        reportEmailSubjectTemplate:
+          emailSubjectTemplate.trim() || DEFAULT_EMAIL_SUBJECT,
+        reportEmailBodyTemplate: emailBodyTemplate.trim() || DEFAULT_EMAIL_BODY,
+      });
+      setMessage('Email settings saved successfully.');
+    } catch (saveError) {
+      setError(
+        saveError instanceof Error
+          ? saveError.message
+          : 'Could not save email settings.',
+      );
+    } finally {
+      setSavingEmail(false);
+    }
+  }
+
+  function insertTemplateVariable(value: string) {
+    if (templateTarget === 'subject') {
+      setEmailSubjectTemplate((current) => `${current}${value}`);
+      return;
+    }
+
+    setEmailBodyTemplate((current) => `${current}${value}`);
+  }
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -82,19 +144,26 @@ export function SettingsPage() {
             Configuration
           </h2>
           <p className="mt-1 text-sm text-ink-muted dark:text-slate-400">
-            Update the profile fields used by report rows and saved to your account.
+            Update the profile fields used by report rows and saved to your
+            account.
           </p>
         </div>
 
         <div className="grid gap-6">
           <Panel>
             <h3 className="text-base font-semibold text-ink dark:text-white">
-              Employee profile
+              Profile settings
             </h3>
             <p className="mt-1 text-sm text-ink-muted dark:text-slate-400">
-              Editable profile fields are stored in the database and reused in reports.
+              Editable profile fields are stored in the database and reused in
+              reports.
             </p>
-            <form onSubmit={handleSave} className="mt-4 grid gap-4 sm:grid-cols-2">
+            <form
+              onSubmit={(event) => {
+                void handleSave(event);
+              }}
+              className="mt-4 grid gap-4 sm:grid-cols-2"
+            >
               <label className="block">
                 <span className="text-sm text-ink-muted dark:text-slate-400">
                   Employee ID
@@ -160,11 +229,23 @@ export function SettingsPage() {
                   className="mt-1 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
                 />
               </label>
-              <div className="sm:col-span-2 flex flex-col gap-3 pt-2">
+              <label className="block">
+                <span className="text-sm text-ink-muted dark:text-slate-400">
+                  Manager email
+                </span>
+                <input
+                  type="email"
+                  value={managerEmail}
+                  onChange={(event) => setManagerEmail(event.target.value)}
+                  placeholder="Enter manager email"
+                  className="mt-1 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
+                />
+              </label>
+              <div className="sm:col-span-2 pt-1">
                 <button
                   type="submit"
                   disabled={saving}
-                  className="w-full rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+                  className="rounded-md bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
                 >
                   {saving ? 'Saving...' : 'Save profile'}
                 </button>
@@ -173,6 +254,90 @@ export function SettingsPage() {
           </Panel>
 
           <IntegrationSettingsPanel />
+
+          <Panel>
+            <h3 className="text-base font-semibold text-ink dark:text-white">
+              Email settings
+            </h3>
+            <p className="mt-1 text-sm text-ink-muted dark:text-slate-400">
+              Configure the recipient and templates used when generating an
+              email draft.
+            </p>
+            <form
+              onSubmit={(event) => {
+                void handleSaveEmail(event);
+              }}
+              className="mt-4 grid gap-4"
+            >
+              <label className="block">
+                <span className="text-sm text-ink-muted dark:text-slate-400">
+                  Receiver email
+                </span>
+                <input
+                  type="email"
+                  value={receiverEmail}
+                  onChange={(event) => setReceiverEmail(event.target.value)}
+                  placeholder={managerEmail || 'manager@example.com'}
+                  className="mt-1 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm text-ink-muted dark:text-slate-400">
+                  Subject template
+                </span>
+                <input
+                  value={emailSubjectTemplate}
+                  onChange={(event) =>
+                    setEmailSubjectTemplate(event.target.value)
+                  }
+                  onFocus={() => setTemplateTarget('subject')}
+                  className="mt-1 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm text-ink-muted dark:text-slate-400">
+                  Body template
+                </span>
+                <textarea
+                  value={emailBodyTemplate}
+                  onChange={(event) => setEmailBodyTemplate(event.target.value)}
+                  onFocus={() => setTemplateTarget('body')}
+                  rows={6}
+                  className="mt-1 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
+                />
+              </label>
+              <details className="rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950">
+                <summary className="cursor-pointer text-sm font-medium text-slate-700 dark:text-slate-200">
+                  Dostępne zmienne: miesiąc, imię i nazwisko, ID pracownika,
+                  manager, okres
+                </summary>
+                <p className="mt-2 text-xs text-ink-muted dark:text-slate-400">
+                  Kliknij pole tematu lub treści, a następnie wybierz zmienną.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {TEMPLATE_VARIABLES.map((variable) => (
+                    <button
+                      key={variable.value}
+                      type="button"
+                      onClick={() => insertTemplateVariable(variable.value)}
+                      className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700 hover:border-emerald-500 hover:text-emerald-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                    >
+                      {variable.label}
+                    </button>
+                  ))}
+                </div>
+              </details>
+              <div>
+                <button
+                  type="submit"
+                  disabled={savingEmail}
+                  className="rounded-md bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {savingEmail ? 'Saving...' : 'Save email settings'}
+                </button>
+              </div>
+            </form>
+          </Panel>
         </div>
       </section>
 
@@ -201,28 +366,6 @@ export function SettingsPage() {
                 {mode}
               </button>
             ))}
-          </div>
-        </Panel>
-
-        <Panel>
-          <h3 className="text-base font-semibold text-ink dark:text-white">
-            Report delivery
-          </h3>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <label className="block sm:col-span-2">
-              <span className="text-sm text-ink-muted dark:text-slate-400">
-                Manager email
-              </span>
-              <input
-                value={managerEmail}
-                onChange={(event) => setManagerEmail(event.target.value)}
-                placeholder="Enter manager email"
-                className="mt-1 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
-              />
-              <p className="mt-2 text-xs text-ink-muted dark:text-slate-400">
-                This profile field is saved with your account.
-              </p>
-            </label>
           </div>
         </Panel>
       </section>

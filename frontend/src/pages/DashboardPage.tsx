@@ -25,6 +25,7 @@ export function DashboardPage() {
       return;
     }
 
+    const authToken = accessToken;
     let cancelled = false;
 
     async function loadReports() {
@@ -32,7 +33,7 @@ export function DashboardPage() {
       setError(null);
 
       try {
-        const nextReports = await listReports(accessToken);
+        const nextReports = await listReports(authToken);
         if (!cancelled) {
           setReports(nextReports);
         }
@@ -116,7 +117,9 @@ export function DashboardPage() {
 
       <div className="grid gap-4 md:grid-cols-3">
         <Panel>
-          <p className="text-sm text-ink-muted dark:text-slate-400">Open drafts</p>
+          <p className="text-sm text-ink-muted dark:text-slate-400">
+            Open drafts
+          </p>
           <p className="mt-3 text-3xl font-semibold text-ink dark:text-white">
             {loading ? '…' : draftCount}
           </p>
@@ -169,7 +172,10 @@ export function DashboardPage() {
           ) : reports.length === 0 ? (
             <p className="mt-4 text-sm text-ink-muted dark:text-slate-400">
               No reports yet.{' '}
-              <Link to="/report/new" className="text-emerald-700 dark:text-emerald-300">
+              <Link
+                to="/report/new"
+                className="text-emerald-700 dark:text-emerald-300"
+              >
                 Create a report
               </Link>{' '}
               and save a work snapshot.

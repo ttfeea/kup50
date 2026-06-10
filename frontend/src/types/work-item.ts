@@ -31,10 +31,6 @@ export const workItemTypeLabels: Record<WorkItemType, string> = {
   CUSTOM: 'Custom',
 };
 
-export function workItemKey(item: Pick<WorkItem, 'source' | 'type' | 'externalId'>) {
-  return `${item.source}:${item.type}:${item.externalId}`;
-}
-
 export function formatWorkItemActivity(item: WorkItem) {
   const value = item.activityUpdatedAt ?? item.activityCreatedAt;
   if (!value) {

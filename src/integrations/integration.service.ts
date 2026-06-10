@@ -35,6 +35,20 @@ type IntegrationStatusDto = {
   tokenPreview?: string;
 };
 
+function isRepositoryLink(value: unknown): value is {
+  label: string;
+  url: string;
+} {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'label' in value &&
+    typeof value.label === 'string' &&
+    'url' in value &&
+    typeof value.url === 'string'
+  );
+}
+
 @Injectable()
 export class IntegrationService {
   private readonly logger = new Logger(IntegrationService.name);
@@ -111,17 +125,15 @@ export class IntegrationService {
       tokens.map((token) => [token.provider, token]),
     );
 
-    return Promise.all(
-      Array.from(supportedProviders).map(async (provider) => {
-        const token = tokensByProvider.get(provider);
+    return Array.from(supportedProviders).map((provider) => {
+      const token = tokensByProvider.get(provider);
 
-        if (!token) {
-          return this.toMissingStatus(provider);
-        }
+      if (!token) {
+        return this.toMissingStatus(provider);
+      }
 
-        return this.statusFromStoredToken(token);
-      }),
-    );
+      return this.statusFromStoredToken(token);
+    });
   }
 
   async disconnect(userId: string, provider: ReportItemSource) {
@@ -269,13 +281,7 @@ export class IntegrationService {
     const jiraName = jiraItem.title.replace(jiraKey, '').trim();
     const metadata = jiraItem.metadata ?? {};
     const jiraRemoteLinks = Array.isArray(metadata.jiraRemoteLinks)
-      ? metadata.jiraRemoteLinks.filter(
-          (link): link is { label: string; url: string } =>
-            typeof link === 'object' &&
-            link !== null &&
-            typeof link.label === 'string' &&
-            typeof link.url === 'string',
-        )
+      ? metadata.jiraRemoteLinks.filter(isRepositoryLink)
       : [];
     const matches =
       jiraRemoteLinks.length > 0
@@ -490,19 +496,6 @@ export class IntegrationService {
     }
 
     return 'Validation failed. Verify the token, base URL, and account email.';
-  }
-
-  private redactToken<T extends { token: string }>(
-    token: T,
-  ): Omit<T, 'token'> & {
-    tokenPreview: string;
-  } {
-    const { token: rawToken, ...safeToken } = token;
-
-    return {
-      ...safeToken,
-      tokenPreview: this.getTokenPreview(rawToken),
-    };
   }
 
   private getTokenPreview(token: string) {

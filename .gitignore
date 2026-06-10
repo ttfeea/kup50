@@ -1,9 +1,11 @@
 # dependencies
 node_modules/
+.venv/
 
 # build
 dist/
 build/
+*.tsbuildinfo
 
 # env
 .env

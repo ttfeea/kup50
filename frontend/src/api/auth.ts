@@ -1,18 +1,9 @@
 import { apiRequest } from './client';
+import { UserDto } from './contracts';
 
-type LoginResponse = {
+export type LoginResponse = {
   accessToken: string;
-  user: {
-    id: string;
-    email: string;
-    role: 'employee' | 'manager';
-    fullname?: string | null;
-    employeeId?: string | null;
-    position?: string | null;
-    department?: string | null;
-    managerName?: string | null;
-    managerEmail?: string | null;
-  };
+  user: UserDto;
 };
 
 export type UpdateMeInput = {
@@ -22,6 +13,9 @@ export type UpdateMeInput = {
   department?: string;
   managerName?: string;
   managerEmail?: string;
+  reportReceiverEmail?: string;
+  reportEmailSubjectTemplate?: string;
+  reportEmailBodyTemplate?: string;
 };
 
 export function loginRequest(email: string) {
@@ -32,13 +26,13 @@ export function loginRequest(email: string) {
 }
 
 export function getMeRequest(authToken: string) {
-  return apiRequest<LoginResponse['user']>('/users/me', {
+  return apiRequest<UserDto>('/users/me', {
     token: authToken,
   });
 }
 
 export function updateMeRequest(authToken: string, body: UpdateMeInput) {
-  return apiRequest<LoginResponse['user']>('/users/me', {
+  return apiRequest<UserDto>('/users/me', {
     method: 'PATCH',
     token: authToken,
     body: JSON.stringify(body),

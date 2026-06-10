@@ -24,4 +24,16 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   managerEmail?: string;
+
+  @IsOptional()
+  @IsString()
+  reportReceiverEmail?: string;
+
+  @IsOptional()
+  @IsString()
+  reportEmailSubjectTemplate?: string;
+
+  @IsOptional()
+  @IsString()
+  reportEmailBodyTemplate?: string;
 }

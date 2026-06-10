@@ -35,18 +35,21 @@ enum WorkItemType {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  role      UserRole @default(employee)
-  createdAt DateTime @default(now()) @map("created_at")
-  fullname  String?
-  position  String?
-  department String?
-  managerName String?
-  managerEmail String? @map("manager_email")
-  employeeId String? @map("employee_id")
+  id                         String   @id @default(uuid())
+  email                      String   @unique
+  role                       UserRole @default(employee)
+  createdAt                  DateTime @default(now()) @map("created_at")
+  fullname                   String?
+  position                   String?
+  department                 String?
+  managerName                String?
+  managerEmail               String?  @map("manager_email")
+  reportReceiverEmail        String?  @map("report_receiver_email")
+  reportEmailSubjectTemplate String?  @map("report_email_subject_template")
+  reportEmailBodyTemplate    String?  @map("report_email_body_template")
+  employeeId                 String?  @map("employee_id")
 
-  reports Report[]
+  reports           Report[]
   integrationTokens IntegrationToken[]
 
   @@map("users")
@@ -62,17 +65,17 @@ model AllowedEmail {
 }
 
 model IntegrationToken {
-  id           String           @id @default(uuid())
-  userId       String           @map("user_id")
-  provider     ReportItemSource
-  token        String
-  baseUrl      String?          @map("base_url")
-  accountEmail String?          @map("account_email")
-  connectionStatus String       @default("missing") @map("connection_status")
-  connectionMessage String?     @map("connection_message")
-  connectionCheckedAt DateTime? @map("connection_checked_at")
-  createdAt    DateTime         @default(now()) @map("created_at")
-  updatedAt    DateTime         @updatedAt @map("updated_at")
+  id                  String           @id @default(uuid())
+  userId              String           @map("user_id")
+  provider            ReportItemSource
+  token               String
+  baseUrl             String?          @map("base_url")
+  accountEmail        String?          @map("account_email")
+  connectionStatus    String           @default("missing") @map("connection_status")
+  connectionMessage   String?          @map("connection_message")
+  connectionCheckedAt DateTime?        @map("connection_checked_at")
+  createdAt           DateTime         @default(now()) @map("created_at")
+  updatedAt           DateTime         @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -82,13 +85,13 @@ model IntegrationToken {
 }
 
 model Report {
-  id                 String       @id @default(uuid())
-  periodStart        DateTime     @map("period_start")
-  periodEnd          DateTime     @map("period_end")
-  status             ReportStatus @default(DRAFT)
-  userId             String       @map("user_id")
-  createdAt          DateTime     @default(now()) @map("created_at")
-  updatedAt          DateTime     @updatedAt @map("updated_at")
+  id          String       @id @default(uuid())
+  periodStart DateTime     @map("period_start")
+  periodEnd   DateTime     @map("period_end")
+  status      ReportStatus @default(DRAFT)
+  userId      String       @map("user_id")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -110,7 +113,7 @@ model ReportItem {
   createdAt  DateTime         @default(now()) @map("created_at")
   updatedAt  DateTime         @updatedAt @map("updated_at")
 
-  report     Report           @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  report Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
   @@index([reportId])
   @@map("report_items")

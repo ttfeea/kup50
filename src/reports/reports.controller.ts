@@ -6,8 +6,10 @@ import {
   Param,
   Post,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { SafeUser } from '../common/utils/user.mapper';
@@ -29,12 +31,35 @@ export class ReportsController {
 
   @Get()
   findAll(@CurrentUser() user: SafeUser) {
-    return this.reportsService.getReportsWithItems(user.id);
+    return this.reportsService.getReportsWithWorkItems(user.id);
   }
 
   @Get(':id')
   findOne(@CurrentUser() user: SafeUser, @Param('id') id: string) {
-    return this.reportsService.getReportWithItems(user.id, id);
+    return this.reportsService.getReportWithWorkItems(user.id, id);
+  }
+
+  @Get(':id/email-draft')
+  emailDraft(@CurrentUser() user: SafeUser, @Param('id') id: string) {
+    return this.reportsService.getEmailDraft(user.id, id);
+  }
+
+  @Get(':id/export-xlsx')
+  async exportXlsx(
+    @CurrentUser() user: SafeUser,
+    @Param('id') id: string,
+    @Res() response: Response,
+  ) {
+    const result = await this.reportsService.exportXlsx(user.id, id);
+    response.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    response.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${result.fileName}"`,
+    );
+    response.send(result.buffer);
   }
 
   @Delete(':id')

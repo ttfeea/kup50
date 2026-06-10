@@ -7,18 +7,31 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { getMeRequest, loginRequest, updateMeRequest } from '../api/auth';
+import {
+  getMeRequest,
+  loginRequest,
+  UpdateMeInput,
+  updateMeRequest,
+} from '../api/auth';
+import { UserDto, UserRole } from '../api/contracts';
+import {
+  DEFAULT_EMAIL_BODY,
+  DEFAULT_EMAIL_SUBJECT,
+} from '../constants/emailTemplates';
 
-type AuthUser = {
+export type AuthUser = {
   id: string;
   name: string;
   email: string;
-  role: 'employee' | 'manager';
+  role: UserRole;
   employeeId: string;
   position: string;
   department: string;
   managerName: string;
   managerEmail: string;
+  reportReceiverEmail: string;
+  reportEmailSubjectTemplate: string;
+  reportEmailBodyTemplate: string;
 };
 
 type AuthContextValue = {
@@ -28,29 +41,12 @@ type AuthContextValue = {
   isBootstrapping: boolean;
   login: (email: string) => Promise<void>;
   logout: () => void;
-  updateProfile: (profile: {
-    fullname?: string;
-    employeeId?: string;
-    position?: string;
-    department?: string;
-    managerName?: string;
-    managerEmail?: string;
-  }) => Promise<void>;
+  updateProfile: (profile: UpdateMeInput) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-function mapUser(user: {
-  id: string;
-  email: string;
-  role: 'employee' | 'manager';
-  fullname?: string | null;
-  employeeId?: string | null;
-  position?: string | null;
-  department?: string | null;
-  managerName?: string | null;
-  managerEmail?: string | null;
-}): AuthUser {
+function mapUser(user: UserDto): AuthUser {
   return {
     id: user.id,
     name: user.fullname?.trim() || user.email,
@@ -61,6 +57,12 @@ function mapUser(user: {
     department: user.department?.trim() || '',
     managerName: user.managerName?.trim() || '',
     managerEmail: user.managerEmail?.trim() || '',
+    reportReceiverEmail:
+      user.reportReceiverEmail?.trim() || user.managerEmail?.trim() || '',
+    reportEmailSubjectTemplate:
+      user.reportEmailSubjectTemplate?.trim() || DEFAULT_EMAIL_SUBJECT,
+    reportEmailBodyTemplate:
+      user.reportEmailBodyTemplate?.trim() || DEFAULT_EMAIL_BODY,
   };
 }
 
@@ -92,6 +94,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
         department: parsed.department || '',
         managerName: parsed.managerName || '',
         managerEmail: parsed.managerEmail || '',
+        reportReceiverEmail:
+          parsed.reportReceiverEmail || parsed.managerEmail || '',
+        reportEmailSubjectTemplate:
+          parsed.reportEmailSubjectTemplate || DEFAULT_EMAIL_SUBJECT,
+        reportEmailBodyTemplate:
+          parsed.reportEmailBodyTemplate || DEFAULT_EMAIL_BODY,
       };
     } catch {
       return null;
@@ -110,14 +118,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, []);
 
   const updateProfile = useCallback(
-    async (profile: {
-      fullname?: string;
-      employeeId?: string;
-      position?: string;
-      department?: string;
-      managerName?: string;
-      managerEmail?: string;
-    }) => {
+    async (profile: UpdateMeInput) => {
       if (!accessToken) {
         throw new Error('Not authenticated');
       }
