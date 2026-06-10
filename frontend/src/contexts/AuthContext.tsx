@@ -7,17 +7,12 @@ import {
   useMemo,
   useState,
 } from 'react';
-import {
-  getMeRequest,
-  loginRequest,
-  UpdateMeInput,
-  updateMeRequest,
-} from '../api/auth';
-import { UserDto, UserRole } from '../api/contracts';
+import { getMeRequest, loginRequest, updateMeRequest } from '../services/auth';
 import {
   DEFAULT_EMAIL_BODY,
   DEFAULT_EMAIL_SUBJECT,
 } from '../constants/emailTemplates';
+import type { UpdateUserDto, UserDto, UserRole } from '../models/dtos/auth.dto';
 
 export type AuthUser = {
   id: string;
@@ -41,7 +36,7 @@ type AuthContextValue = {
   isBootstrapping: boolean;
   login: (email: string) => Promise<void>;
   logout: () => void;
-  updateProfile: (profile: UpdateMeInput) => Promise<void>;
+  updateProfile: (profile: UpdateUserDto) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -118,7 +113,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, []);
 
   const updateProfile = useCallback(
-    async (profile: UpdateMeInput) => {
+    async (profile: UpdateUserDto) => {
       if (!accessToken) {
         throw new Error('Not authenticated');
       }

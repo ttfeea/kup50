@@ -1,4 +1,4 @@
-import { IntegrationProvider } from '../api/integrations';
+import type { IntegrationProvider } from '../models/dtos/integration.dto';
 
 export type IntegrationGuide = {
   baseUrl: {

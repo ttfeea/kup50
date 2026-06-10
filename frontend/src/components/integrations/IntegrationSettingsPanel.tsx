@@ -3,13 +3,15 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import {
   checkIntegration,
   disconnectIntegration,
-  IntegrationProvider,
-  IntegrationStatusDto,
   saveIntegrationToken,
-} from '../../api/integrations';
+} from '../../services/integrations';
 import { useAuth } from '../../contexts/AuthContext';
 import { useIntegrations } from '../../contexts/IntegrationsContext';
 import { integrationGuides } from '../../data/integrationGuides';
+import type {
+  IntegrationProvider,
+  IntegrationStatusDto,
+} from '../../models/dtos/integration.dto';
 import { Panel } from '../ui/Panel';
 
 const providers: Array<{ id: IntegrationProvider; label: string }> = [

@@ -4,12 +4,10 @@ import {
   confirmReport,
   deleteDraftReport,
   downloadReportXlsx,
-  EmailDraftDto,
   formatReportPeriod,
   getEmailDraft,
   getReport,
-  ReportDto,
-} from '../api/reports';
+} from '../services/reports';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Panel } from '../components/ui/Panel';
 import {
@@ -17,6 +15,7 @@ import {
   XLSX_ATTACHMENT_NOTE,
 } from '../constants/emailTemplates';
 import { useAuth } from '../contexts/AuthContext';
+import type { EmailDraftDto, ReportDto } from '../models/dtos/report.dto';
 import { ReportRow } from '../types/report-row';
 import { normalizeWorkItemsToRows } from '../types/report-normalizer';
 import { buildEmailDraftMailto } from '../utils/emailDraft';

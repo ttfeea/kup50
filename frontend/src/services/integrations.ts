@@ -1,25 +1,9 @@
+import type {
+  IntegrationProvider,
+  IntegrationStatusDto,
+  SaveIntegrationTokenDto,
+} from '../models/dtos/integration.dto';
 import { apiRequest } from './client';
-
-export type IntegrationProvider = 'JIRA' | 'GITLAB' | 'GITHUB';
-export type IntegrationStatus = 'missing' | 'connected' | 'error';
-
-export type IntegrationStatusDto = {
-  provider: IntegrationProvider;
-  connected: boolean;
-  status: IntegrationStatus;
-  message: string;
-  baseUrl?: string | null;
-  accountEmail?: string | null;
-  createdAt?: string;
-  updatedAt?: string;
-  tokenPreview?: string;
-};
-
-export type SaveIntegrationTokenInput = {
-  token: string;
-  baseUrl?: string;
-  accountEmail?: string;
-};
 
 export function listIntegrations(authToken: string) {
   return apiRequest<IntegrationStatusDto[]>('/integrations', {
@@ -30,7 +14,7 @@ export function listIntegrations(authToken: string) {
 export function saveIntegrationToken(
   authToken: string,
   provider: IntegrationProvider,
-  body: SaveIntegrationTokenInput,
+  body: SaveIntegrationTokenDto,
 ) {
   return apiRequest<IntegrationStatusDto>(`/integrations/${provider}/token`, {
     method: 'POST',

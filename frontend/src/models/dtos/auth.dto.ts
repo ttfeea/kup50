@@ -15,3 +15,20 @@ export type UserDto = {
   reportEmailSubjectTemplate: string | null;
   reportEmailBodyTemplate: string | null;
 };
+
+export type LoginResponseDto = {
+  accessToken: string;
+  user: UserDto;
+};
+
+export type UpdateUserDto = {
+  fullname?: string;
+  employeeId?: string;
+  position?: string;
+  department?: string;
+  managerName?: string;
+  managerEmail?: string;
+  reportReceiverEmail?: string;
+  reportEmailSubjectTemplate?: string;
+  reportEmailBodyTemplate?: string;
+};

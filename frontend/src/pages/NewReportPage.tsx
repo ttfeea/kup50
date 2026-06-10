@@ -5,7 +5,7 @@ import {
   confirmReport,
   createReport,
   previewIntegrationItems,
-} from '../api/reports';
+} from '../services/reports';
 import { useAuth } from '../contexts/AuthContext';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Panel } from '../components/ui/Panel';

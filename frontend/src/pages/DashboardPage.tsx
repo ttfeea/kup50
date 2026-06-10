@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { formatReportPeriod, listReports, ReportDto } from '../api/reports';
+import { formatReportPeriod, listReports } from '../services/reports';
 import { useAuth } from '../contexts/AuthContext';
 import { useIntegrations } from '../contexts/IntegrationsContext';
+import type { ReportDto } from '../models/dtos/report.dto';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Panel } from '../components/ui/Panel';
 import {
