@@ -59,112 +59,121 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="settings-page page-shell page-view space-y-8">
+     
       <PageHeader
         title="Settings"
         description="Employee profile, work-source connections, and app preferences."
       />
 
       {message ? (
-        <div className="rounded-md bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+        <div className="rounded-[10px] border border-[rgba(157,0,255,0.25)] bg-[rgba(157,0,255,0.08)] px-4 py-3 text-sm text-[#d966ff]">
           {message}
         </div>
       ) : null}
       {error ? (
-        <div className="rounded-md bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-200">
+        <div className="rounded-[10px] border border-[rgba(255,45,107,0.30)] bg-[rgba(255,45,107,0.10)] px-4 py-3 text-sm text-[#ff6b9d]">
           {error}
         </div>
       ) : null}
 
+      {/* ── Configuration section ── */}
       <section className="space-y-4">
         <div>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-ink-muted dark:text-slate-400">
-            Configuration
-          </h2>
-          <p className="mt-1 text-sm text-ink-muted dark:text-slate-400">
+          <div className="flex items-center gap-3">
+            <div className="section-bar" />
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">
+              Configuration
+            </h2>
+          </div>
+          <p className="mt-1 pl-[19px] text-sm text-[var(--foreground-muted)]">
             Update the profile fields used by report rows and saved to your account.
           </p>
         </div>
 
         <div className="grid gap-6">
-          <Panel>
-            <h3 className="text-base font-semibold text-ink dark:text-white">
-              Employee profile
-            </h3>
-            <p className="mt-1 text-sm text-ink-muted dark:text-slate-400">
+          {/* Employee profile panel */}
+          <Panel className="card-hover">
+            <div className="flex items-center gap-3 mb-1">
+              <div className="section-bar" />
+              <h3 className="text-base font-semibold text-[var(--foreground)]">
+                Employee profile
+              </h3>
+            </div>
+            <p className="mb-4 pl-[19px] text-sm text-[var(--foreground-muted)]">
               Editable profile fields are stored in the database and reused in reports.
             </p>
-            <form onSubmit={handleSave} className="mt-4 grid gap-4 sm:grid-cols-2">
+            <form onSubmit={handleSave} className="grid gap-4 sm:grid-cols-2">
               <label className="block">
-                <span className="text-sm text-ink-muted dark:text-slate-400">
+                <span className="text-xs font-medium uppercase tracking-wide text-[var(--foreground-muted)]">
                   Employee ID
                 </span>
                 <input
                   value={employeeId}
                   onChange={(event) => setEmployeeId(event.target.value)}
                   placeholder="Enter employee ID"
-                  className="mt-1 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
+                  className="mt-1 input-glass w-full"
                 />
               </label>
               <label className="block">
-                <span className="text-sm text-ink-muted dark:text-slate-400">
+                <span className="text-xs font-medium uppercase tracking-wide text-[var(--foreground-muted)]">
                   Full name
                 </span>
                 <input
                   value={fullname}
                   onChange={(event) => setFullname(event.target.value)}
                   placeholder="Enter full name"
-                  className="mt-1 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
+                  className="mt-1 input-glass w-full"
                 />
               </label>
               <label className="block">
-                <span className="text-sm text-ink-muted dark:text-slate-400">
+                <span className="text-xs font-medium uppercase tracking-wide text-[var(--foreground-muted)]">
                   Email
                 </span>
                 <input
                   readOnly
                   value={user?.email ?? ''}
-                  className="mt-1 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-950"
+                  className="mt-1 input-glass w-full opacity-60 cursor-not-allowed"
                 />
               </label>
               <label className="block">
-                <span className="text-sm text-ink-muted dark:text-slate-400">
+                <span className="text-xs font-medium uppercase tracking-wide text-[var(--foreground-muted)]">
                   Title
                 </span>
                 <input
                   value={position}
                   onChange={(event) => setPosition(event.target.value)}
                   placeholder="Enter title"
-                  className="mt-1 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
+                  className="mt-1 input-glass w-full"
                 />
               </label>
               <label className="block">
-                <span className="text-sm text-ink-muted dark:text-slate-400">
+                <span className="text-xs font-medium uppercase tracking-wide text-[var(--foreground-muted)]">
                   Department
                 </span>
                 <input
                   value={department}
                   onChange={(event) => setDepartment(event.target.value)}
                   placeholder="Enter department"
-                  className="mt-1 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
+                  className="mt-1 input-glass w-full"
                 />
               </label>
               <label className="block">
-                <span className="text-sm text-ink-muted dark:text-slate-400">
+                <span className="text-xs font-medium uppercase tracking-wide text-[var(--foreground-muted)]">
                   Manager name
                 </span>
                 <input
                   value={managerName}
                   onChange={(event) => setManagerName(event.target.value)}
                   placeholder="Enter manager name"
-                  className="mt-1 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
+                  className="mt-1 input-glass w-full"
                 />
               </label>
-              <div className="sm:col-span-2 flex flex-col gap-3 pt-2">
+              <div className="sm:col-span-2 pt-2">
                 <button
                   type="submit"
                   disabled={saving}
-                  className="w-full rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+                  className="btn-primary w-full sm:w-auto disabled:cursor-not-allowed disabled:opacity-70"
                 >
                   {saving ? 'Saving...' : 'Save profile'}
                 </button>
@@ -176,50 +185,37 @@ export function SettingsPage() {
         </div>
       </section>
 
+      {/* ── Preferences section ── */}
       <section className="space-y-4">
-        <div>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-ink-muted dark:text-slate-400">
+        <div className="flex items-center gap-3">
+          <div className="section-bar" />
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">
             Preferences
           </h2>
         </div>
-        <Panel>
-          <h3 className="text-base font-semibold text-ink dark:text-white">
-            Appearance
-          </h3>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {(['light', 'dark'] as const).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setTheme(mode)}
-                className={`rounded-md border px-4 py-3 text-left text-sm font-medium capitalize ${
-                  theme === mode
-                    ? 'border-emerald-600 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'
-                    : 'border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200'
-                }`}
-              >
-                {mode}
-              </button>
-            ))}
-          </div>
-        </Panel>
 
-        <Panel>
-          <h3 className="text-base font-semibold text-ink dark:text-white">
-            Report delivery
-          </h3>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        
+
+        {/* Report delivery panel */}
+        <Panel className="card-hover">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="section-bar" />
+            <h3 className="text-base font-semibold text-[var(--foreground)]">
+              Report delivery
+            </h3>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
             <label className="block sm:col-span-2">
-              <span className="text-sm text-ink-muted dark:text-slate-400">
+              <span className="text-xs font-medium uppercase tracking-wide text-[var(--foreground-muted)]">
                 Manager email
               </span>
               <input
                 value={managerEmail}
                 onChange={(event) => setManagerEmail(event.target.value)}
                 placeholder="Enter manager email"
-                className="mt-1 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
+                className="mt-1 input-glass w-full"
               />
-              <p className="mt-2 text-xs text-ink-muted dark:text-slate-400">
+              <p className="mt-2 text-xs text-[var(--foreground-faint)]">
                 This profile field is saved with your account.
               </p>
             </label>

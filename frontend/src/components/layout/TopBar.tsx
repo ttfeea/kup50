@@ -19,7 +19,7 @@ export function TopBar({ menuButton }: TopBarProps) {
   }
 
   return (
-    <header className="sticky top-0 z-20 border-b border-slate-200 bg-surface/90 backdrop-blur dark:border-slate-800 dark:bg-surface-dark/90">
+    <header className="sticky top-0 z-20 border-b border-white/10 bg-[rgba(10,1,21,0.85)] backdrop-blur dark:border-white/10 dark:bg-[rgba(10,1,21,0.85)]">
       <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-3">
           {menuButton}

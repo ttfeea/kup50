@@ -94,14 +94,16 @@ export function DashboardPage() {
   }, [reports]);
 
   return (
-    <div className="space-y-6">
+    <div className="dashboard-page page-shell page-view space-y-6 bg-[#0a0115] ">
+      
       <PageHeader
+        className="mb-0"
         title="Dashboard"
         description="Stored report snapshots only — no live integration calls."
         actions={
           <Link
             to="/report/new"
-            className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+            className="btn-primary w-full sm:w-auto justify-center"
           >
             New report
           </Link>
@@ -109,28 +111,28 @@ export function DashboardPage() {
       />
 
       {error ? (
-        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-300">
+        <p className="rounded-2xl border border-rose-400/25 bg-[rgba(157,0,255,0.10)] px-3 py-2 text-sm text-rose-100 shadow-rose-500/10">
           {error}
         </p>
       ) : null}
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Panel>
-          <p className="text-sm text-ink-muted dark:text-slate-400">Open drafts</p>
+        <Panel className="card-hover">
+          <p className="text-sm text-[rgba(240,230,255,0.72)]">Open drafts</p>
           <p className="mt-3 text-3xl font-semibold text-ink dark:text-white">
             {loading ? '…' : draftCount}
           </p>
         </Panel>
-        <Panel>
-          <p className="text-sm text-ink-muted dark:text-slate-400">
+        <Panel className="card-hover">
+          <p className="text-sm text-[rgba(240,230,255,0.72)]">
             Stored work items
           </p>
           <p className="mt-3 text-3xl font-semibold text-ink dark:text-white">
             {loading ? '…' : storedItemCount}
           </p>
         </Panel>
-        <Panel>
-          <p className="text-sm text-ink-muted dark:text-slate-400">
+        <Panel className="card-hover">
+          <p className="text-sm text-[rgba(240,230,255,0.72)]">
             Connected sources
           </p>
           <p className="mt-3 text-3xl font-semibold text-ink dark:text-white">
@@ -140,8 +142,8 @@ export function DashboardPage() {
       </div>
 
       {latestReport ? (
-        <Panel>
-          <h2 className="text-base font-semibold text-ink dark:text-white">
+        <Panel className="card-hover">
+          <h2 className="text-base font-semibold text-white">
             Latest report snapshot
           </h2>
           <p className="mt-1 text-sm text-ink-muted dark:text-slate-400">
@@ -150,7 +152,7 @@ export function DashboardPage() {
           </p>
           <Link
             to={`/report/${latestReport.id}`}
-            className="mt-3 inline-block text-sm font-medium text-emerald-700 dark:text-emerald-300"
+            className="mt-3 inline-block text-sm font-semibold text-violet-200 transition hover:text-white"
           >
             View report
           </Link>
@@ -180,7 +182,7 @@ export function DashboardPage() {
                 <Link
                   key={report.id}
                   to={`/report/${report.id}`}
-                  className="grid grid-cols-3 gap-3 py-3 text-sm hover:text-emerald-700 dark:hover:text-emerald-300"
+                  className="grid grid-cols-3 gap-3 py-3 text-sm text-[rgba(240,230,255,0.85)] transition hover:text-violet-bright"
                 >
                   <span>{formatReportPeriod(report)}</span>
                   <span>{report.status}</span>
@@ -210,7 +212,7 @@ export function DashboardPage() {
                 <Link
                   key={`${item.reportId}-${item.id ?? item.externalId}`}
                   to={`/report/${item.reportId}`}
-                  className="block rounded-md bg-slate-50 p-3 hover:bg-slate-100 dark:bg-slate-950 dark:hover:bg-slate-900"
+                  className="block rounded-xl bg-[rgba(255,255,255,0.04)] p-4 transition hover:bg-[rgba(157,0,255,0.12)]"
                 >
                   <p className="text-sm font-medium">{item.title}</p>
                   <p className="mt-1 text-xs text-ink-muted dark:text-slate-400">
