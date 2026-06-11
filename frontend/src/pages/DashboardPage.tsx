@@ -67,11 +67,6 @@ export function DashboardPage() {
     [reports],
   );
 
-  const storedItemCount = useMemo(
-    () => reports.reduce((total, report) => total + report.workItems.length, 0),
-    [reports],
-  );
-
   const latestWorkItems = useMemo(() => {
     const items: Array<WorkItem & { reportId: string; reportStatus: string }> =
       [];
@@ -124,21 +119,13 @@ export function DashboardPage() {
         </p>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         <Panel className="card-hover">
           <p className="text-sm text-ink-muted dark:text-slate-400">
             Open drafts
           </p>
           <p className="mt-3 text-3xl font-semibold text-ink dark:text-white">
             {loading ? '…' : draftCount}
-          </p>
-        </Panel>
-        <Panel className="card-hover">
-          <p className="text-sm text-ink-muted dark:text-slate-400">
-            Stored work items
-          </p>
-          <p className="mt-3 text-3xl font-semibold text-ink dark:text-white">
-            {loading ? '…' : storedItemCount}
           </p>
         </Panel>
         <Panel className="card-hover">
