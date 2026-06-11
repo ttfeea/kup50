@@ -2,22 +2,32 @@ import { ReactNode } from 'react';
 
 type PageHeaderProps = {
   title: string;
-  description: string;
+  description?: string;
   actions?: ReactNode;
+  className?: string;
 };
 
-export function PageHeader({ title, description, actions }: PageHeaderProps) {
+export function PageHeader({
+  title,
+  description,
+  actions,
+  className = '',
+}: PageHeaderProps) {
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div
+      className={`page-header flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between ${className}`.trim()}
+    >
       <div>
-        <h1 className="text-2xl font-semibold tracking-normal text-ink dark:text-white">
+        <h1 className="text-3xl font-semibold tracking-[0.02em] text-white">
           {title}
         </h1>
-        <p className="mt-1 max-w-2xl text-sm leading-6 text-ink-muted dark:text-slate-400">
-          {description}
-        </p>
+        {description ? (
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-[#eae9fc]">
+            {description}
+          </p>
+        ) : null}
       </div>
-      {actions ? <div className="flex shrink-0 gap-2">{actions}</div> : null}
+      {actions ? <div className="flex shrink-0 flex-wrap gap-2">{actions}</div> : null}
     </div>
   );
 }

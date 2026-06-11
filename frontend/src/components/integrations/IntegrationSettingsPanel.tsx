@@ -34,9 +34,9 @@ const emptyForm: ProviderForm = {
 
 const statusStyles = {
   connected:
-    'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300',
-  error: 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300',
-  missing: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+    'border border-emerald-400/25 bg-emerald-400/10 text-emerald-200',
+  error: 'border border-rose-400/25 bg-rose-400/10 text-rose-200',
+  missing: 'border border-white/10 bg-white/5 text-[#eae9fc]',
 };
 
 type IntegrationSettingsPanelProps = {
@@ -198,16 +198,12 @@ export function IntegrationSettingsPanel({
   }
 
   return (
-    <Panel className={className}>
+    <Panel className={`card-hover ${className ?? ''}`}>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-base font-semibold text-ink dark:text-white">
             Integration settings
           </h3>
-          <p className="mt-1 text-sm text-ink-muted dark:text-slate-400">
-            Save a token, then use Check connection to verify. See each provider
-            for the exact URL and scopes.
-          </p>
         </div>
         <button
           type="button"
@@ -215,7 +211,7 @@ export function IntegrationSettingsPanel({
             void refreshIntegrations();
           }}
           disabled={loading}
-          className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900"
+          className="btn-outline px-4 py-2 disabled:cursor-not-allowed disabled:opacity-70"
         >
           <RefreshCw className="h-4 w-4" aria-hidden="true" />
           Refresh
@@ -223,17 +219,17 @@ export function IntegrationSettingsPanel({
       </div>
 
       {message ? (
-        <p className="mt-4 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+        <p className="mt-4 rounded-xl border border-emerald-400/25 bg-emerald-400/10 px-3 py-2 text-sm text-emerald-200">
           {message}
         </p>
       ) : null}
       {error ? (
-        <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-300">
+        <p className="mt-4 rounded-xl border border-rose-400/25 bg-rose-400/10 px-3 py-2 text-sm text-rose-200">
           {error}
         </p>
       ) : null}
 
-      <div className="mt-4 space-y-4">
+      <div className="mt-5 grid gap-4">
         {providers.map((provider) => {
           const integration = integrationsByProvider.get(provider.id);
           const form = forms[provider.id];
@@ -247,15 +243,15 @@ export function IntegrationSettingsPanel({
               onSubmit={(event) => {
                 void handleSave(event, provider.id);
               }}
-              className="rounded-md border border-slate-200 p-4 dark:border-slate-800"
+              className="rounded-2xl border border-white/10 bg-white/[0.035] p-4 shadow-[0_10px_30px_rgba(0,0,0,0.18)]"
             >
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <div className="flex items-center gap-2">
-                    <PlugZap className="h-4 w-4 text-slate-500" />
-                    <p className="text-sm font-medium">{provider.label}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <PlugZap className="h-4 w-4 text-violet-300" />
+                    <p className="text-sm font-semibold text-[#eae9fc]">{provider.label}</p>
                     <span
-                      className={`rounded-md px-2 py-1 text-xs ${statusStyles[status]}`}
+                      className={`max-w-full rounded-full px-2.5 py-1 text-xs ${statusStyles[status]}`}
                     >
                       {integration?.message ?? 'Integration is not connected'}
                     </span>
@@ -267,14 +263,14 @@ export function IntegrationSettingsPanel({
                   ) : null}
                   <IntegrationGuideHint guide={guide} />
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 sm:justify-end">
                   <button
                     type="button"
                     onClick={() => {
                       void handleCheck(provider.id);
                     }}
                     disabled={isBusy || loading}
-                    className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900"
+                    className="btn-outline px-3 py-2 disabled:cursor-not-allowed disabled:opacity-70"
                   >
                     <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
                     {isBusy ? 'Working...' : 'Check'}
@@ -285,7 +281,7 @@ export function IntegrationSettingsPanel({
                       void handleDisconnect(provider.id);
                     }}
                     disabled={isBusy || loading || status === 'missing'}
-                    className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900"
+                    className="btn-outline border-rose-400/25 px-3 py-2 text-rose-200 disabled:cursor-not-allowed disabled:opacity-70"
                   >
                     <Trash2 className="h-4 w-4" aria-hidden="true" />
                     Disconnect
@@ -293,7 +289,7 @@ export function IntegrationSettingsPanel({
                 </div>
               </div>
 
-              <div className="mt-4 grid gap-3 lg:grid-cols-3">
+              <div className="mt-4 grid items-end gap-3 lg:grid-cols-3">
                 <label className="block">
                   <span className="text-sm text-ink-muted dark:text-slate-400">
                     Token
@@ -305,7 +301,7 @@ export function IntegrationSettingsPanel({
                     }
                     type="password"
                     placeholder="Paste token"
-                    className="mt-1 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
+                    className="input-glass mt-1 w-full"
                   />
                 </label>
                 <label className="block">
@@ -318,7 +314,7 @@ export function IntegrationSettingsPanel({
                       updateForm(provider.id, 'baseUrl', event.target.value)
                     }
                     placeholder={baseUrlPlaceholder(provider.id)}
-                    className="mt-1 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
+                    className="input-glass mt-1 w-full"
                   />
                 </label>
                 {guide.accountEmail?.required ? (
@@ -340,7 +336,7 @@ export function IntegrationSettingsPanel({
                         )
                       }
                       placeholder="you@company.com"
-                      className="mt-1 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
+                      className="input-glass mt-1 w-full"
                     />
                   </label>
                 ) : null}
@@ -348,7 +344,7 @@ export function IntegrationSettingsPanel({
               <button
                 type="submit"
                 disabled={isBusy || loading || !form.token}
-                className="mt-4 rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+                className="btn-primary mt-4 w-full disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
               >
                 {isBusy ? 'Saving...' : 'Save token'}
               </button>
@@ -397,17 +393,17 @@ function IntegrationGuideHint({
   guide: (typeof integrationGuides)[IntegrationProvider];
 }) {
   return (
-    <div className="mt-3 rounded-md border border-slate-200 bg-slate-50/80 p-3 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-300">
-      <p className="font-medium text-slate-700 dark:text-slate-200">
+    <details className="mt-3 rounded-xl border border-white/10 bg-black/10 p-3 text-xs text-[#eae9fc]">
+      <summary className="cursor-pointer font-medium text-[#eae9fc]">
         What to paste
-      </p>
+      </summary>
       <ul className="mt-2 list-inside list-disc space-y-1.5">
         <li>
           <span className="font-medium">Base URL:</span>{' '}
           {guide.baseUrl.examples.map((example, index) => (
             <span key={example}>
               {index > 0 ? ' or ' : null}
-              <code className="rounded bg-white px-1 py-0.5 font-mono text-[11px] dark:bg-slate-950">
+              <code className="rounded bg-black/25 px-1 py-0.5 font-mono text-[11px]">
                 {example}
               </code>
             </span>
@@ -424,7 +420,7 @@ function IntegrationGuideHint({
                 href={guide.token.createUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="font-medium text-emerald-700 underline underline-offset-2 dark:text-emerald-300"
+                className="font-medium text-violet-200 underline underline-offset-2"
               >
                 Create token
               </a>
@@ -438,6 +434,6 @@ function IntegrationGuideHint({
           </li>
         ) : null}
       </ul>
-    </div>
+    </details>
   );
 }

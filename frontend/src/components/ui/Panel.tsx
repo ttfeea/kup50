@@ -7,7 +7,7 @@ type PanelProps = PropsWithChildren<{
 export function Panel({ children, className = '' }: PanelProps) {
   return (
     <section
-      className={`rounded-lg border border-slate-200 bg-white p-5 shadow-soft dark:border-slate-800 dark:bg-slate-900 ${className}`}
+      className={`rounded-xl border p-5 border-[rgba(51, 13, 75, 0.2)] bg-[rgba(52, 14, 99, 0.45)] backdrop-blur-md ${className}`}
     >
       {children}
     </section>

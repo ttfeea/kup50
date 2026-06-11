@@ -18,6 +18,7 @@ type IntegrationsContextValue = {
   refreshIntegrations: () => Promise<void>;
   upsertIntegration: (integration: IntegrationStatusDto) => void;
   connectedCount: number;
+  connectedProviders: IntegrationStatusDto['provider'][];
 };
 
 const IntegrationsContext = createContext<IntegrationsContextValue | undefined>(
@@ -70,6 +71,13 @@ export function IntegrationsProvider({ children }: PropsWithChildren) {
     () => integrations.filter((item) => item.status === 'connected').length,
     [integrations],
   );
+  const connectedProviders = useMemo(
+    () =>
+      integrations
+        .filter((item) => item.status === 'connected')
+        .map((item) => item.provider),
+    [integrations],
+  );
 
   const value = useMemo<IntegrationsContextValue>(
     () => ({
@@ -79,6 +87,7 @@ export function IntegrationsProvider({ children }: PropsWithChildren) {
       refreshIntegrations,
       upsertIntegration,
       connectedCount,
+      connectedProviders,
     }),
     [
       integrations,
@@ -87,6 +96,7 @@ export function IntegrationsProvider({ children }: PropsWithChildren) {
       refreshIntegrations,
       upsertIntegration,
       connectedCount,
+      connectedProviders,
     ],
   );
 

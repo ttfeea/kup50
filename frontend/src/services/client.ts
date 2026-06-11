@@ -28,16 +28,51 @@ async function apiFetch(
   { token, ...requestOptions }: ApiOptions = {},
 ) {
   const options = { ...requestOptions, token };
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...requestOptions,
-    headers: buildHeaders(options),
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...requestOptions,
+      headers: buildHeaders(options),
+    });
+  } catch {
+    throw new Error(
+      'Connection error: Check your network and confirm the API is running.',
+    );
+  }
 
   if (!response.ok) {
-    throw new Error(await readErrorMessage(response));
+    throw new Error(
+      formatApiError(response.status, await readErrorMessage(response)),
+    );
   }
 
   return response;
+}
+
+function formatApiError(status: number, detail: string) {
+  if (status === 401) {
+    return 'Session expired: Sign in again and retry.';
+  }
+  if (status === 403) {
+    return 'Access denied: Check your account permissions.';
+  }
+  if (status === 404) {
+    return detail.startsWith('Cannot GET')
+      ? 'Feature unavailable: Update or restart the API, then retry.'
+      : 'Not found: Refresh the page and check that the item still exists.';
+  }
+  if (status === 409) {
+    return 'Conflict: Refresh the page before trying again.';
+  }
+  if (status === 400 || status === 422) {
+    return `Invalid input: ${detail}`;
+  }
+  if (status >= 500) {
+    return 'Server error: Retry shortly or contact support.';
+  }
+
+  return `Request failed: ${detail}`;
 }
 
 async function readErrorMessage(response: Response) {

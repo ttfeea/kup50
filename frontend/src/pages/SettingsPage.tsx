@@ -7,7 +7,6 @@ import {
   DEFAULT_EMAIL_SUBJECT,
 } from '../constants/emailTemplates';
 import { useAuth } from '../contexts/AuthContext';
-import { useTheme } from '../contexts/ThemeContext';
 
 const TEMPLATE_VARIABLES = [
   { label: 'Month', value: '{{month}}' },
@@ -19,7 +18,6 @@ const TEMPLATE_VARIABLES = [
 ] as const;
 
 export function SettingsPage() {
-  const { theme, setTheme } = useTheme();
   const { user, updateProfile } = useAuth();
   const [employeeId, setEmployeeId] = useState('');
   const [fullname, setFullname] = useState('');
@@ -121,19 +119,18 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="settings-page page-shell page-view space-y-8">
       <PageHeader
         title="Settings"
-        description="Employee profile, work-source connections, and app preferences."
       />
 
       {message ? (
-        <div className="rounded-md bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+        <div className="rounded-[10px] border border-[rgba(157,0,255,0.25)] bg-[rgba(157,0,255,0.08)] px-4 py-3 text-sm text-[#d966ff]">
           {message}
         </div>
       ) : null}
       {error ? (
-        <div className="rounded-md bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-200">
+        <div className="rounded-[10px] border border-[rgba(255,45,107,0.30)] bg-[rgba(255,45,107,0.10)] px-4 py-3 text-sm text-[#ff6b9d]">
           {error}
         </div>
       ) : null}
@@ -143,21 +140,13 @@ export function SettingsPage() {
           <h2 className="text-sm font-semibold uppercase tracking-wide text-ink-muted dark:text-slate-400">
             Configuration
           </h2>
-          <p className="mt-1 text-sm text-ink-muted dark:text-slate-400">
-            Update the profile fields used by report rows and saved to your
-            account.
-          </p>
         </div>
 
         <div className="grid gap-6">
-          <Panel>
+          <Panel className="card-hover">
             <h3 className="text-base font-semibold text-ink dark:text-white">
               Profile settings
             </h3>
-            <p className="mt-1 text-sm text-ink-muted dark:text-slate-400">
-              Editable profile fields are stored in the database and reused in
-              reports.
-            </p>
             <form
               onSubmit={(event) => {
                 void handleSave(event);
@@ -172,7 +161,7 @@ export function SettingsPage() {
                   value={employeeId}
                   onChange={(event) => setEmployeeId(event.target.value)}
                   placeholder="Enter employee ID"
-                  className="mt-1 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
+                  className="input-glass mt-1 w-full"
                 />
               </label>
               <label className="block">
@@ -183,7 +172,7 @@ export function SettingsPage() {
                   value={fullname}
                   onChange={(event) => setFullname(event.target.value)}
                   placeholder="Enter full name"
-                  className="mt-1 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
+                  className="input-glass mt-1 w-full"
                 />
               </label>
               <label className="block">
@@ -193,7 +182,7 @@ export function SettingsPage() {
                 <input
                   readOnly
                   value={user?.email ?? ''}
-                  className="mt-1 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-950"
+                  className="input-glass mt-1 w-full cursor-not-allowed opacity-60"
                 />
               </label>
               <label className="block">
@@ -204,7 +193,7 @@ export function SettingsPage() {
                   value={position}
                   onChange={(event) => setPosition(event.target.value)}
                   placeholder="Enter title"
-                  className="mt-1 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
+                  className="input-glass mt-1 w-full"
                 />
               </label>
               <label className="block">
@@ -215,7 +204,7 @@ export function SettingsPage() {
                   value={department}
                   onChange={(event) => setDepartment(event.target.value)}
                   placeholder="Enter department"
-                  className="mt-1 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
+                  className="input-glass mt-1 w-full"
                 />
               </label>
               <label className="block">
@@ -226,7 +215,7 @@ export function SettingsPage() {
                   value={managerName}
                   onChange={(event) => setManagerName(event.target.value)}
                   placeholder="Enter manager name"
-                  className="mt-1 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
+                  className="input-glass mt-1 w-full"
                 />
               </label>
               <label className="block">
@@ -238,14 +227,14 @@ export function SettingsPage() {
                   value={managerEmail}
                   onChange={(event) => setManagerEmail(event.target.value)}
                   placeholder="Enter manager email"
-                  className="mt-1 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
+                  className="input-glass mt-1 w-full"
                 />
               </label>
               <div className="sm:col-span-2 pt-1">
                 <button
                   type="submit"
                   disabled={saving}
-                  className="rounded-md bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+                  className="btn-primary disabled:cursor-not-allowed disabled:opacity-70"
                 >
                   {saving ? 'Saving...' : 'Save profile'}
                 </button>
@@ -255,14 +244,10 @@ export function SettingsPage() {
 
           <IntegrationSettingsPanel />
 
-          <Panel>
+          <Panel className="card-hover">
             <h3 className="text-base font-semibold text-ink dark:text-white">
               Email settings
             </h3>
-            <p className="mt-1 text-sm text-ink-muted dark:text-slate-400">
-              Configure the recipient and templates used when generating an
-              email draft.
-            </p>
             <form
               onSubmit={(event) => {
                 void handleSaveEmail(event);
@@ -278,7 +263,7 @@ export function SettingsPage() {
                   value={receiverEmail}
                   onChange={(event) => setReceiverEmail(event.target.value)}
                   placeholder={managerEmail || 'manager@example.com'}
-                  className="mt-1 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
+                  className="input-glass mt-1 w-full"
                 />
               </label>
               <label className="block">
@@ -291,7 +276,7 @@ export function SettingsPage() {
                     setEmailSubjectTemplate(event.target.value)
                   }
                   onFocus={() => setTemplateTarget('subject')}
-                  className="mt-1 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
+                  className="input-glass mt-1 w-full"
                 />
               </label>
               <label className="block">
@@ -303,7 +288,7 @@ export function SettingsPage() {
                   onChange={(event) => setEmailBodyTemplate(event.target.value)}
                   onFocus={() => setTemplateTarget('body')}
                   rows={6}
-                  className="mt-1 w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
+                  className="input-glass mt-1 w-full"
                 />
               </label>
               <details className="rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950">
@@ -331,7 +316,7 @@ export function SettingsPage() {
                 <button
                   type="submit"
                   disabled={savingEmail}
-                  className="rounded-md bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+                  className="btn-primary disabled:cursor-not-allowed disabled:opacity-70"
                 >
                   {savingEmail ? 'Saving...' : 'Save email settings'}
                 </button>
@@ -341,34 +326,6 @@ export function SettingsPage() {
         </div>
       </section>
 
-      <section className="space-y-4">
-        <div>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-ink-muted dark:text-slate-400">
-            Preferences
-          </h2>
-        </div>
-        <Panel>
-          <h3 className="text-base font-semibold text-ink dark:text-white">
-            Appearance
-          </h3>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {(['light', 'dark'] as const).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setTheme(mode)}
-                className={`rounded-md border px-4 py-3 text-left text-sm font-medium capitalize ${
-                  theme === mode
-                    ? 'border-emerald-600 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'
-                    : 'border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200'
-                }`}
-              >
-                {mode}
-              </button>
-            ))}
-          </div>
-        </Panel>
-      </section>
     </div>
   );
 }

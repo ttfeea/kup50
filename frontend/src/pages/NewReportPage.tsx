@@ -72,12 +72,12 @@ function renderRepositoryLinks(value: string) {
         href={link}
         target="_blank"
         rel="noreferrer"
-        className="block text-emerald-700 underline dark:text-emerald-300"
+        className="block text-[#d966ff] underline hover:text-[#bf3fff] transition-colors"
       >
         {link}
       </a>
     ) : (
-      <span key={`${link}-${index}`} className="block">
+      <span key={`${link}-${index}`} className="block text-white/70">
         {line}
       </span>
     );
@@ -464,15 +464,16 @@ export function NewReportPage() {
   const isCustomPeriod = periodDays === 0;
 
   return (
-    <div className="space-y-6">
+    <div className="new-report-page page-shell page-view space-y-6">
+    
       <PageHeader
+        className="mb-0"
         title="New report"
-        description="Build the report table directly by loading integration rows, adding manual rows, and saving a draft before confirming."
         actions={
           <button
             type="button"
             onClick={() => requestNavigation('/dashboard')}
-            className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+            className="btn-outline w-full sm:w-auto"
           >
             Back to dashboard
           </button>
@@ -480,31 +481,28 @@ export function NewReportPage() {
       />
 
       {message ? (
-        <div className="rounded-md bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+        <div className="rounded-2xl border border-white/10 bg-[rgba(255,255,255,0.08)] px-4 py-3 text-sm text-white shadow-violet-500/10">
           {message}
         </div>
       ) : null}
       {error ? (
-        <div className="rounded-md bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-200">
+        <div className="rounded-2xl border border-rose-400/25 bg-[rgba(157,0,255,0.10)] px-4 py-3 text-sm text-rose-100 shadow-rose-500/10">
           {error}
         </div>
       ) : null}
 
-      <Panel>
+      <Panel className="card-hover">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h2 className="text-base font-semibold text-ink dark:text-white">
               Report information
             </h2>
-            <p className="mt-1 text-xs text-ink-muted dark:text-slate-400">
-              Edit profile information in Settings.
-            </p>
           </div>
           <button
             type="button"
             onClick={() => setShowFullPreview(true)}
             disabled={rows.length === 0}
-            className="rounded-md border border-emerald-600 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-emerald-300 dark:hover:bg-emerald-500/10"
+            className="btn-outline w-full sm:w-auto disabled:cursor-not-allowed disabled:opacity-50"
           >
             Preview full KUP50 table
           </button>
@@ -529,24 +527,17 @@ export function NewReportPage() {
       </Panel>
 
       <Panel>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-base font-semibold text-ink dark:text-white">
-              Report builder
-            </h2>
-            <p className="mt-1 text-sm text-ink-muted dark:text-slate-400">
-              {
-                'The table below is your main workspace. Load rows, add manual rows, then save a draft.'
-              }
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2 items-center">
-            <label className="flex items-center gap-2 text-sm text-ink-muted dark:text-slate-400">
+        <div>
+          <h2 className="text-base font-semibold text-ink dark:text-white">
+            Report builder
+          </h2>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[auto_auto_1fr_auto_auto] lg:items-end">
+            <label className="flex flex-col gap-1 text-sm text-ink-muted dark:text-slate-400">
               <span>Period</span>
               <select
                 value={periodDays}
                 onChange={(event) => setPeriodDays(Number(event.target.value))}
-                className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
+                className="input-glass period-select min-w-[150px]"
               >
                 {periodOptions.map((value) => (
                   <option key={value} value={value}>
@@ -558,7 +549,7 @@ export function NewReportPage() {
             </label>
             {isCustomPeriod ? (
               <>
-                <label className="flex items-center gap-2 text-sm text-ink-muted dark:text-slate-400">
+                <label className="flex flex-col gap-1 text-sm text-ink-muted dark:text-slate-400">
                   <span>From</span>
                   <input
                     type="date"
@@ -566,16 +557,16 @@ export function NewReportPage() {
                     onChange={(event) =>
                       setCustomPeriodStart(event.target.value)
                     }
-                    className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
+                    className="input-glass"
                   />
                 </label>
-                <label className="flex items-center gap-2 text-sm text-ink-muted dark:text-slate-400">
+                <label className="flex flex-col gap-1 text-sm text-ink-muted dark:text-slate-400">
                   <span>To</span>
                   <input
                     type="date"
                     value={customPeriodEnd}
                     onChange={(event) => setCustomPeriodEnd(event.target.value)}
-                    className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
+                    className="input-glass"
                   />
                 </label>
               </>
@@ -584,14 +575,14 @@ export function NewReportPage() {
               type="button"
               onClick={() => void handleFetchItems()}
               disabled={loadingItems}
-              className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"
+              className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-70 lg:col-start-4"
             >
-              {loadingItems ? 'Loading…' : 'Load from integrations'}
+              {loadingItems ? 'Loading…' : 'Load items'}
             </button>
             <button
               type="button"
               onClick={handleAddManualRow}
-              className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"
+              className="btn-outline w-full"
             >
               Add manual row
             </button>
@@ -599,23 +590,26 @@ export function NewReportPage() {
         </div>
 
         {rows.length === 0 ? (
-          <p className="mt-4 text-sm text-ink-muted dark:text-slate-400">
-            {
-              'Load integration rows or add a manual row to begin building the report.'
-            }
+          <p className="mt-5 text-sm text-ink-muted dark:text-slate-400">
+            No rows loaded.
           </p>
         ) : (
-          <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
-            <table className="min-w-[760px] w-full text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase text-ink-muted dark:bg-slate-950 dark:text-slate-400">
+          <div className="mt-5 overflow-x-auto rounded-2xl border border-white/10 bg-black/10 shadow-[0_12px_30px_rgba(157,0,255,0.12)]">
+            <table className="w-full min-w-[900px] table-fixed text-left text-sm text-[#eae9fc]">
+              <colgroup>
+                <col className="w-[34%]" />
+                <col className="w-[30%]" />
+                <col className="w-[36%]" />
+              </colgroup>
+              <thead className="bg-white/[0.08] text-xs uppercase tracking-wide text-[#eae9fc] backdrop-blur-sm">
                 <tr>
-                  <th className="sticky top-0 border-b border-slate-200 px-3 py-3 text-left dark:border-slate-800">
+                  <th className="sticky top-0 border-b border-white/10 px-3 py-3 text-left text-white/80">
                     Creative Work Titles
                   </th>
-                  <th className="sticky top-0 border-b border-slate-200 px-3 py-3 text-left dark:border-slate-800">
+                  <th className="sticky top-0 border-b border-white/10 px-3 py-3 text-left text-white/80">
                     Creative Work Stages
                   </th>
-                  <th className="sticky top-0 border-b border-slate-200 px-3 py-3 text-left dark:border-slate-800">
+                  <th className="sticky top-0 border-b border-white/10 px-3 py-3 text-left text-white/80">
                     Repository Links
                   </th>
                 </tr>
@@ -624,70 +618,60 @@ export function NewReportPage() {
                 {rows.map((row, rowIndex) => (
                   <tr
                     key={row.rowId}
-                    className="border-b border-slate-100 dark:border-slate-800"
+                    className="border-b border-white/10 align-top transition-colors last:border-b-0 hover:bg-violet-500/[0.06]"
                   >
-                    <td className="px-3 py-3">
+                    <td className="px-4 py-4">
                       <input
                         value={row.workTitles}
                         placeholder="Creative work title"
                         onChange={(event) =>
-                          updateRowField(
-                            rowIndex,
-                            'workTitles',
-                            event.target.value,
-                          )
+                          updateRowField(rowIndex, 'workTitles', event.target.value)
                         }
-                        className="w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-sm dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+                        className="input-glass min-h-11 w-full"
                       />
                       {row.url && row.source === 'JIRA' ? (
                         <a
                           href={row.url}
                           target="_blank"
                           rel="noreferrer"
-                          className="mt-1 block text-xs text-emerald-700 underline dark:text-emerald-300"
+                          className="mt-2 block truncate text-xs text-violet-200 underline transition-colors hover:text-white"
+                          title={row.url}
                         >
                           Open Jira task
                         </a>
                       ) : null}
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-4 py-4">
                       <input
                         value={row.workStages}
                         placeholder="Creative work stage"
                         onChange={(event) =>
-                          updateRowField(
-                            rowIndex,
-                            'workStages',
-                            event.target.value,
-                          )
+                          updateRowField(rowIndex, 'workStages', event.target.value)
                         }
-                        className="w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-sm dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+                        className="input-glass min-h-11 w-full"
                       />
                       {row.stageUrl ? (
                         <a
                           href={row.stageUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="mt-1 block text-xs text-emerald-700 underline dark:text-emerald-300"
+                          className="mt-2 block truncate text-xs text-violet-200 underline transition-colors hover:text-white"
+                          title={row.stageUrl}
                         >
                           Open Jira stage
                         </a>
                       ) : null}
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-4 py-4">
                       <div className="space-y-2">
                         <textarea
                           value={row.repoLinks}
                           placeholder="Repository links"
                           onChange={(event) =>
-                            updateRowField(
-                              rowIndex,
-                              'repoLinks',
-                              event.target.value,
-                            )
+                            updateRowField(rowIndex, 'repoLinks', event.target.value)
                           }
-                          rows={Math.max(1, row.repositoryLinks.length)}
-                          className="w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-sm dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+                          rows={Math.max(2, row.repositoryLinks.length)}
+                          className="input-glass min-h-[72px] w-full resize-y break-all"
                         />
                         {row.repositoryLinks.map((link) => (
                           <a
@@ -695,7 +679,8 @@ export function NewReportPage() {
                             href={link.url}
                             target="_blank"
                             rel="noreferrer"
-                            className="block text-emerald-700 underline dark:text-emerald-300"
+                            className="block max-w-full truncate text-xs text-violet-200 underline transition-colors hover:text-white"
+                            title={link.url}
                           >
                             {link.label}
                           </a>
@@ -703,7 +688,7 @@ export function NewReportPage() {
                         <button
                           type="button"
                           onClick={() => deleteRow(rowIndex)}
-                          className="rounded-md border border-slate-200 px-2 py-1 text-xs text-rose-700 hover:bg-rose-50 dark:border-slate-800 dark:text-rose-300 dark:hover:bg-slate-900"
+                          className="btn-outline border-rose-400/30 text-rose-300 hover:bg-rose-500/10 text-xs w-full sm:w-auto"
                         >
                           Delete
                         </button>
@@ -716,53 +701,47 @@ export function NewReportPage() {
           </div>
         )}
 
-        <div className="mt-6 flex flex-wrap gap-2">
+        <div className="mt-6 flex flex-col gap-3 border-t border-white/10 pt-5 sm:flex-row sm:justify-end">
           <button
             type="button"
-            onClick={() => {
-              void handleSaveReport(false);
-            }}
+            onClick={() => { void handleSaveReport(false); }}
             disabled={!canSaveDraft}
-            className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+            className="btn-primary w-full sm:w-auto disabled:cursor-not-allowed disabled:opacity-70"
           >
             {saving ? 'Saving…' : 'Save draft'}
           </button>
           <button
             type="button"
-            onClick={() => {
-              void handleSaveReport(true);
-            }}
+            onClick={() => { void handleSaveReport(true); }}
             disabled={!canSaveDraft}
-            className="rounded-md border border-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-70 dark:text-emerald-300 dark:hover:bg-emerald-500/10"
+            className="btn-outline w-full sm:w-auto disabled:cursor-not-allowed disabled:opacity-70"
           >
             {saving ? 'Saving…' : 'Save and confirm'}
           </button>
         </div>
       </Panel>
 
+      {/* ── Full preview modal ── */}
       {showFullPreview ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 px-4 py-6">
-          <div className="flex max-h-[90vh] w-full max-w-7xl flex-col rounded-xl bg-white shadow-xl dark:bg-slate-950">
-            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6">
+          <div className="flex max-h-[90vh] w-full max-w-7xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-[rgba(19,5,43,0.92)] shadow-[0_40px_120px_rgba(73,0,164,0.30)] backdrop-blur-xl">
+            <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
               <div>
-                <h3 className="text-lg font-semibold text-ink dark:text-white">
+                <h3 className="text-lg font-semibold text-white">
                   Full KUP50 table preview
                 </h3>
-                <p className="mt-1 text-sm text-ink-muted dark:text-slate-400">
-                  This is the final data shape for future export and email.
-                </p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowFullPreview(false)}
-                className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-200 dark:hover:bg-slate-900"
+                className="btn-outline rounded-full border-white/20 px-4 py-2 text-sm font-semibold text-white"
               >
                 Close
               </button>
             </div>
             <div className="overflow-auto p-5">
               <table className="min-w-[1600px] w-full border-collapse text-left text-xs">
-                <thead className="bg-slate-100 dark:bg-slate-900">
+                <thead className="bg-white/10 text-white/80">
                   <tr>
                     {[
                       'Employee ID',
@@ -776,7 +755,7 @@ export function NewReportPage() {
                     ].map((header) => (
                       <th
                         key={header}
-                        className="border border-slate-200 px-3 py-3 align-top font-semibold text-ink dark:border-slate-700 dark:text-white"
+                        className="border border-white/10 px-3 py-3 align-top font-semibold text-white"
                       >
                         {header}
                       </th>
@@ -786,28 +765,14 @@ export function NewReportPage() {
                 <tbody>
                   {fullPreviewRows.map((row, index) => (
                     <tr key={rows[index]?.rowId ?? index}>
-                      <td className="border border-slate-200 px-3 py-3 align-top dark:border-slate-700">
-                        {row.employeeId}
-                      </td>
-                      <td className="border border-slate-200 px-3 py-3 align-top dark:border-slate-700">
-                        {row.name}
-                      </td>
-                      <td className="border border-slate-200 px-3 py-3 align-top dark:border-slate-700">
-                        {row.title}
-                      </td>
-                      <td className="border border-slate-200 px-3 py-3 align-top dark:border-slate-700">
-                        {row.manager}
-                      </td>
-                      <td className="border border-slate-200 px-3 py-3 align-top dark:border-slate-700">
-                        {row.month}
-                      </td>
-                      <td className="border border-slate-200 px-3 py-3 align-top whitespace-pre-wrap dark:border-slate-700">
-                        {row.workTitles}
-                      </td>
-                      <td className="border border-slate-200 px-3 py-3 align-top whitespace-pre-wrap dark:border-slate-700">
-                        {row.workStages}
-                      </td>
-                      <td className="border border-slate-200 px-3 py-3 align-top whitespace-pre-wrap break-words dark:border-slate-700">
+                      <td className="border border-white/10 px-3 py-3 align-top text-white/80">{row.employeeId}</td>
+                      <td className="border border-white/10 px-3 py-3 align-top text-white/80">{row.name}</td>
+                      <td className="border border-white/10 px-3 py-3 align-top text-white/80">{row.title}</td>
+                      <td className="border border-white/10 px-3 py-3 align-top text-white/80">{row.manager}</td>
+                      <td className="border border-white/10 px-3 py-3 align-top text-white/80">{row.month}</td>
+                      <td className="border border-white/10 px-3 py-3 align-top whitespace-pre-wrap text-white/80">{row.workTitles}</td>
+                      <td className="border border-white/10 px-3 py-3 align-top whitespace-pre-wrap text-white/80">{row.workStages}</td>
+                      <td className="border border-white/10 px-3 py-3 align-top whitespace-pre-wrap break-words text-white/80">
                         {renderRepositoryLinks(row.repoLinks)}
                       </td>
                     </tr>
@@ -819,38 +784,35 @@ export function NewReportPage() {
         </div>
       ) : null}
 
+      {/* ── Leave modal ── */}
       {showLeaveModal ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4 py-6">
-          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl dark:bg-slate-950">
-            <h3 className="text-lg font-semibold text-ink dark:text-white">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6">
+          <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-[rgba(19,5,43,0.92)] p-6 shadow-[0_40px_120px_rgba(73,0,164,0.30)] backdrop-blur-xl">
+            <h3 className="text-lg font-semibold text-white">
               Unsaved work detected
             </h3>
-            <p className="mt-3 text-sm text-ink-muted dark:text-slate-400">
-              {
-                'You have unsaved changes in the report builder. Choose an action before leaving.'
-              }
+            <p className="mt-3 text-sm text-white/60">
+              {'You have unsaved changes in the report builder. Choose an action before leaving.'}
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
               <button
                 type="button"
                 onClick={closeLeaveModal}
-                className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+                className="btn-outline w-full sm:w-auto"
               >
                 Continue editing
               </button>
               <button
                 type="button"
                 onClick={() => leaveWithoutSaving()}
-                className="rounded-md border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50 dark:border-rose-800 dark:bg-slate-900 dark:text-rose-200"
+                className="btn-outline border-rose-400/30 text-rose-300 hover:bg-rose-500/10 w-full sm:w-auto"
               >
                 Discard changes
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  void saveDraftAndLeave();
-                }}
-                className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                onClick={() => { void saveDraftAndLeave(); }}
+                className="btn-primary w-full sm:w-auto"
               >
                 Save draft and leave
               </button>

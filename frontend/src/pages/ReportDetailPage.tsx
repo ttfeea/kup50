@@ -360,19 +360,19 @@ export function ReportDetailPage() {
     : null;
 
   return (
-    <div className="space-y-6">
+    <div className="page-shell page-view space-y-6">
       <PageHeader
         title="Report snapshot"
         description={formatReportPeriod(report)}
         actions={
-          <div className="flex gap-2">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end">
             <button
               type="button"
               onClick={() => {
                 void handleGenerateEmail();
               }}
               disabled={generatingEmail || report.workItems.length === 0}
-              className="rounded-md border border-emerald-600 bg-white px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-500/10"
+              className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
             >
               {generatingEmail ? 'Generating...' : 'Generate Email Preview'}
             </button>
@@ -383,7 +383,7 @@ export function ReportDetailPage() {
                   void handleConfirm();
                 }}
                 disabled={confirming || (report.workItems?.length ?? 0) === 0}
-                className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+                className="btn-outline w-full disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
               >
                 {confirming ? 'Confirming…' : 'Confirm report'}
               </button>
@@ -394,7 +394,7 @@ export function ReportDetailPage() {
                 void handleDeleteDraft();
               }}
               disabled={deleting}
-              className="rounded-md border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-70 dark:border-rose-800 dark:bg-slate-900 dark:text-rose-200"
+              className="btn-outline w-full border-rose-400/30 text-rose-300 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
             >
               {deleteButtonLabel}
             </button>
@@ -403,23 +403,19 @@ export function ReportDetailPage() {
       />
 
       {error ? (
-        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-300">
+        <p className="rounded-2xl border border-rose-400/25 bg-[rgba(157,0,255,0.10)] px-3 py-2 text-sm text-rose-100">
           {error}
         </p>
       ) : null}
 
       <div className="space-y-6">
         {emailDraft ? (
-          <Panel>
+          <Panel className="card-hover">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h2 className="text-base font-semibold text-ink dark:text-white">
                   Email preview
                 </h2>
-                <p className="mt-1 text-sm text-ink-muted dark:text-slate-400">
-                  Review the message, then open a real draft in your default
-                  mail app.
-                </p>
               </div>
               <button
                 type="button"
@@ -429,7 +425,7 @@ export function ReportDetailPage() {
                   setCopyMessage(null);
                   setShowEmailFallback(false);
                 }}
-                className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold dark:border-slate-800"
+                className="btn-outline"
               >
                 Close preview
               </button>
@@ -486,19 +482,14 @@ export function ReportDetailPage() {
             </dl>
             <div className="mt-5 overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
               <div
-                className="min-w-[1500px] [&_table]:w-full [&_table]:border-collapse [&_th]:border [&_th]:border-slate-200 [&_th]:bg-slate-100 [&_th]:p-3 [&_th]:text-left [&_th]:align-top [&_td]:border [&_td]:border-slate-200 [&_td]:p-3 [&_td]:align-top [&_a]:text-emerald-700 [&_a]:underline dark:[&_th]:border-slate-700 dark:[&_th]:bg-slate-900 dark:[&_td]:border-slate-700 dark:[&_a]:text-emerald-300"
+                className="min-w-[1500px] bg-white text-slate-900 [&_table]:w-full [&_table]:border-collapse [&_th]:border [&_th]:border-slate-300 [&_th]:bg-slate-100 [&_th]:p-3 [&_th]:text-left [&_th]:align-top [&_td]:border [&_td]:border-slate-300 [&_td]:p-3 [&_td]:align-top [&_a]:text-violet-700 [&_a]:underline"
                 dangerouslySetInnerHTML={{
                   __html: emailDraft.tablePreviewHtml,
                 }}
               />
             </div>
-            <div className="mt-4 space-y-1 text-sm text-ink-muted dark:text-slate-400">
+            <div className="mt-4 text-sm text-ink-muted dark:text-slate-400">
               <p>{XLSX_ATTACHMENT_NOTE}</p>
-              <p>
-                Automatyczne dodawanie załącznika wymaga integracji z
-                Outlook/Gmail API. Obecnie możesz otworzyć szkic wiadomości i
-                ręcznie dodać XLSX.
-              </p>
             </div>
             {copyMessage ? (
               <p className="mt-2 text-sm text-emerald-700 dark:text-emerald-300">
@@ -569,28 +560,20 @@ export function ReportDetailPage() {
                 </div>
               </div>
             ) : null}
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="mt-5 flex flex-col gap-3 border-t border-white/10 pt-5 sm:flex-row sm:flex-wrap">
               <button
                 type="button"
                 onClick={handleOpenEmailDraft}
-                className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                className="btn-primary w-full sm:w-auto"
               >
                 Open Email Draft
               </button>
-              {mailtoDraft?.mailtoUrl ? (
-                <a
-                  href={mailtoDraft.mailtoUrl}
-                  className="rounded-md border border-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-500/10"
-                >
-                  Open draft manually
-                </a>
-              ) : null}
               <button
                 type="button"
                 onClick={() => {
                   void handleCopyTable();
                 }}
-                className="rounded-md border border-slate-200 px-4 py-2 text-sm font-semibold hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900"
+                className="btn-outline w-full sm:w-auto"
               >
                 Copy Table
               </button>
@@ -600,15 +583,23 @@ export function ReportDetailPage() {
                   void handleDownloadXlsx();
                 }}
                 disabled={downloadingXlsx}
-                className="rounded-md border border-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-70 dark:text-emerald-300 dark:hover:bg-emerald-500/10"
+                className="btn-outline w-full disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
               >
                 {downloadingXlsx ? 'Downloading...' : 'Download XLSX'}
               </button>
+              {mailtoDraft?.mailtoUrl ? (
+                <a
+                  href={mailtoDraft.mailtoUrl}
+                  className="self-center text-sm font-medium text-[#eae9fc] underline underline-offset-4"
+                >
+                  Open manually
+                </a>
+              ) : null}
             </div>
           </Panel>
         ) : null}
 
-        <Panel>
+        <Panel className="card-hover">
           <h2 className="text-base font-semibold text-ink dark:text-white">
             Report metadata
           </h2>
@@ -631,9 +622,9 @@ export function ReportDetailPage() {
             </div>
           </dl>
         </Panel>
-        <Panel>
+        <Panel className="card-hover">
           <h2 className="text-base font-semibold text-ink dark:text-white">
-            Report grid (export-ready)
+            Report table
           </h2>
           {rows.length === 0 ? (
             <p className="mt-4 text-sm text-ink-muted dark:text-slate-400">
