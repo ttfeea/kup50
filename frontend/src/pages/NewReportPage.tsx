@@ -465,7 +465,7 @@ export function NewReportPage() {
 
   return (
     <div className="new-report-page page-shell page-view space-y-6">
-    
+
       <PageHeader
         className="mb-0"
         title="New report"
