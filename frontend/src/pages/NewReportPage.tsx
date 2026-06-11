@@ -469,7 +469,6 @@ export function NewReportPage() {
       <PageHeader
         className="mb-0"
         title="New report"
-        description="Build the report table directly by loading integration rows, adding manual rows, and saving a draft before confirming."
         actions={
           <button
             type="button"
@@ -498,9 +497,6 @@ export function NewReportPage() {
             <h2 className="text-base font-semibold text-ink dark:text-white">
               Report information
             </h2>
-            <p className="mt-1 text-xs text-ink-muted dark:text-slate-400">
-              Edit profile information in Settings.
-            </p>
           </div>
           <button
             type="button"
@@ -531,22 +527,17 @@ export function NewReportPage() {
       </Panel>
 
       <Panel>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-base font-semibold text-ink dark:text-white">
-              Report builder
-            </h2>
-            <p className="mt-1 text-sm text-ink-muted dark:text-slate-400">
-              {'The table below is your main workspace. Load rows, add manual rows, then save a draft.'}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2 items-center">
-            <label className="flex items-center gap-2 text-sm text-ink-muted dark:text-slate-400">
+        <div>
+          <h2 className="text-base font-semibold text-ink dark:text-white">
+            Report builder
+          </h2>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[auto_auto_1fr_auto_auto] lg:items-end">
+            <label className="flex flex-col gap-1 text-sm text-ink-muted dark:text-slate-400">
               <span>Period</span>
               <select
                 value={periodDays}
                 onChange={(event) => setPeriodDays(Number(event.target.value))}
-                className="input-glass"
+                className="input-glass period-select min-w-[150px]"
               >
                 {periodOptions.map((value) => (
                   <option key={value} value={value}>
@@ -558,7 +549,7 @@ export function NewReportPage() {
             </label>
             {isCustomPeriod ? (
               <>
-                <label className="flex items-center gap-2 text-sm text-ink-muted dark:text-slate-400">
+                <label className="flex flex-col gap-1 text-sm text-ink-muted dark:text-slate-400">
                   <span>From</span>
                   <input
                     type="date"
@@ -569,7 +560,7 @@ export function NewReportPage() {
                     className="input-glass"
                   />
                 </label>
-                <label className="flex items-center gap-2 text-sm text-ink-muted dark:text-slate-400">
+                <label className="flex flex-col gap-1 text-sm text-ink-muted dark:text-slate-400">
                   <span>To</span>
                   <input
                     type="date"
@@ -584,14 +575,14 @@ export function NewReportPage() {
               type="button"
               onClick={() => void handleFetchItems()}
               disabled={loadingItems}
-              className="btn-outline w-full sm:w-auto disabled:cursor-not-allowed disabled:opacity-70"
+              className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-70 lg:col-start-4"
             >
-              {loadingItems ? 'Loading…' : 'Load from integrations'}
+              {loadingItems ? 'Loading…' : 'Load items'}
             </button>
             <button
               type="button"
               onClick={handleAddManualRow}
-              className="btn-outline w-full sm:w-auto"
+              className="btn-outline w-full"
             >
               Add manual row
             </button>
@@ -599,13 +590,18 @@ export function NewReportPage() {
         </div>
 
         {rows.length === 0 ? (
-          <p className="mt-4 text-sm text-ink-muted dark:text-slate-400">
-            {'Load integration rows or add a manual row to begin building the report.'}
+          <p className="mt-5 text-sm text-ink-muted dark:text-slate-400">
+            No rows loaded.
           </p>
         ) : (
-          <div className="mt-4 overflow-x-auto rounded-3xl border border-white/10 bg-[rgba(255,255,255,0.04)] shadow-[0_12px_30px_rgba(157,0,255,0.12)]">
-            <table className="min-w-[760px] w-full text-left text-sm">
-              <thead className="bg-[rgba(255,255,255,0.08)] text-xs uppercase text-white/70 backdrop-blur-sm">
+          <div className="mt-5 overflow-x-auto rounded-2xl border border-white/10 bg-black/10 shadow-[0_12px_30px_rgba(157,0,255,0.12)]">
+            <table className="w-full min-w-[900px] table-fixed text-left text-sm text-[#eae9fc]">
+              <colgroup>
+                <col className="w-[34%]" />
+                <col className="w-[30%]" />
+                <col className="w-[36%]" />
+              </colgroup>
+              <thead className="bg-white/[0.08] text-xs uppercase tracking-wide text-[#eae9fc] backdrop-blur-sm">
                 <tr>
                   <th className="sticky top-0 border-b border-white/10 px-3 py-3 text-left text-white/80">
                     Creative Work Titles
@@ -622,49 +618,51 @@ export function NewReportPage() {
                 {rows.map((row, rowIndex) => (
                   <tr
                     key={row.rowId}
-                    className="border-b border-[rgba(157,0,255,0.12)] transition-colors hover:bg-[rgba(157,0,255,0.05)]"
+                    className="border-b border-white/10 align-top transition-colors last:border-b-0 hover:bg-violet-500/[0.06]"
                   >
-                    <td className="px-3 py-3">
+                    <td className="px-4 py-4">
                       <input
                         value={row.workTitles}
                         placeholder="Creative work title"
                         onChange={(event) =>
                           updateRowField(rowIndex, 'workTitles', event.target.value)
                         }
-                        className="input-glass"
+                        className="input-glass min-h-11 w-full"
                       />
                       {row.url && row.source === 'JIRA' ? (
                         <a
                           href={row.url}
                           target="_blank"
                           rel="noreferrer"
-                          className="mt-1 block text-xs text-[#d966ff] underline hover:text-[#bf3fff] transition-colors"
+                          className="mt-2 block truncate text-xs text-violet-200 underline transition-colors hover:text-white"
+                          title={row.url}
                         >
                           Open Jira task
                         </a>
                       ) : null}
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-4 py-4">
                       <input
                         value={row.workStages}
                         placeholder="Creative work stage"
                         onChange={(event) =>
                           updateRowField(rowIndex, 'workStages', event.target.value)
                         }
-                        className="input-glass"
+                        className="input-glass min-h-11 w-full"
                       />
                       {row.stageUrl ? (
                         <a
                           href={row.stageUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="mt-1 block text-xs text-[#d966ff] underline hover:text-[#bf3fff] transition-colors"
+                          className="mt-2 block truncate text-xs text-violet-200 underline transition-colors hover:text-white"
+                          title={row.stageUrl}
                         >
                           Open Jira stage
                         </a>
                       ) : null}
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-4 py-4">
                       <div className="space-y-2">
                         <textarea
                           value={row.repoLinks}
@@ -672,8 +670,8 @@ export function NewReportPage() {
                           onChange={(event) =>
                             updateRowField(rowIndex, 'repoLinks', event.target.value)
                           }
-                          rows={Math.max(1, row.repositoryLinks.length)}
-                          className="input-glass"
+                          rows={Math.max(2, row.repositoryLinks.length)}
+                          className="input-glass min-h-[72px] w-full resize-y break-all"
                         />
                         {row.repositoryLinks.map((link) => (
                           <a
@@ -681,7 +679,8 @@ export function NewReportPage() {
                             href={link.url}
                             target="_blank"
                             rel="noreferrer"
-                            className="block text-[#d966ff] underline hover:text-[#bf3fff] transition-colors"
+                            className="block max-w-full truncate text-xs text-violet-200 underline transition-colors hover:text-white"
+                            title={link.url}
                           >
                             {link.label}
                           </a>
@@ -702,7 +701,7 @@ export function NewReportPage() {
           </div>
         )}
 
-        <div className="mt-6 flex flex-wrap gap-2">
+        <div className="mt-6 flex flex-col gap-3 border-t border-white/10 pt-5 sm:flex-row sm:justify-end">
           <button
             type="button"
             onClick={() => { void handleSaveReport(false); }}
@@ -731,9 +730,6 @@ export function NewReportPage() {
                 <h3 className="text-lg font-semibold text-white">
                   Full KUP50 table preview
                 </h3>
-                <p className="mt-1 text-sm text-[rgba(255,255,255,0.72)]">
-                  This is the final data shape for future export and email.
-                </p>
               </div>
               <button
                 type="button"

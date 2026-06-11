@@ -7,7 +7,6 @@ import {
   DEFAULT_EMAIL_SUBJECT,
 } from '../constants/emailTemplates';
 import { useAuth } from '../contexts/AuthContext';
-import { useTheme } from '../contexts/ThemeContext';
 
 const TEMPLATE_VARIABLES = [
   { label: 'Month', value: '{{month}}' },
@@ -19,7 +18,6 @@ const TEMPLATE_VARIABLES = [
 ] as const;
 
 export function SettingsPage() {
-  const { theme, setTheme } = useTheme();
   const { user, updateProfile } = useAuth();
   const [employeeId, setEmployeeId] = useState('');
   const [fullname, setFullname] = useState('');
@@ -124,7 +122,6 @@ export function SettingsPage() {
     <div className="settings-page page-shell page-view space-y-8">
       <PageHeader
         title="Settings"
-        description="Employee profile, work-source connections, and app preferences."
       />
 
       {message ? (
@@ -143,10 +140,6 @@ export function SettingsPage() {
           <h2 className="text-sm font-semibold uppercase tracking-wide text-ink-muted dark:text-slate-400">
             Configuration
           </h2>
-          <p className="mt-1 text-sm text-ink-muted dark:text-slate-400">
-            Update the profile fields used by report rows and saved to your
-            account.
-          </p>
         </div>
 
         <div className="grid gap-6">
@@ -154,10 +147,6 @@ export function SettingsPage() {
             <h3 className="text-base font-semibold text-ink dark:text-white">
               Profile settings
             </h3>
-            <p className="mt-1 text-sm text-ink-muted dark:text-slate-400">
-              Editable profile fields are stored in the database and reused in
-              reports.
-            </p>
             <form
               onSubmit={(event) => {
                 void handleSave(event);
@@ -259,10 +248,6 @@ export function SettingsPage() {
             <h3 className="text-base font-semibold text-ink dark:text-white">
               Email settings
             </h3>
-            <p className="mt-1 text-sm text-ink-muted dark:text-slate-400">
-              Configure the recipient and templates used when generating an
-              email draft.
-            </p>
             <form
               onSubmit={(event) => {
                 void handleSaveEmail(event);
@@ -341,34 +326,6 @@ export function SettingsPage() {
         </div>
       </section>
 
-      <section className="space-y-4">
-        <div>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-ink-muted dark:text-slate-400">
-            Preferences
-          </h2>
-        </div>
-        <Panel className="card-hover">
-          <h3 className="text-base font-semibold text-ink dark:text-white">
-            Appearance
-          </h3>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {(['light', 'dark'] as const).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setTheme(mode)}
-                className={`rounded-md border px-4 py-3 text-left text-sm font-medium capitalize ${
-                  theme === mode
-                    ? 'border-emerald-600 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'
-                    : 'border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200'
-                }`}
-              >
-                {mode}
-              </button>
-            ))}
-          </div>
-        </Panel>
-      </section>
     </div>
   );
 }

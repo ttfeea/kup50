@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 
 type PageHeaderProps = {
   title: string;
-  description: string;
+  description?: string;
   actions?: ReactNode;
   className?: string;
 };
@@ -21,9 +21,11 @@ export function PageHeader({
         <h1 className="text-3xl font-semibold tracking-[0.02em] text-white">
           {title}
         </h1>
-        <p className="mt-1 max-w-2xl text-sm leading-6 text-[rgba(240,230,255,0.72)]">
-          {description}
-        </p>
+        {description ? (
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-[#eae9fc]">
+            {description}
+          </p>
+        ) : null}
       </div>
       {actions ? <div className="flex shrink-0 flex-wrap gap-2">{actions}</div> : null}
     </div>

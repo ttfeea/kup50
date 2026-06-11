@@ -4,7 +4,6 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useState,
 } from 'react';
 
 type Theme = 'light' | 'dark';
@@ -17,34 +16,21 @@ type ThemeContextValue = {
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
-function getInitialTheme(): Theme {
-  const stored = localStorage.getItem('kup50-theme');
-
-  if (stored === 'light' || stored === 'dark') {
-    return stored;
-  }
-
-  return window.matchMedia('(prefers-color-scheme: dark)').matches
-    ? 'dark'
-    : 'light';
-}
-
 export function ThemeProvider({ children }: PropsWithChildren) {
-  const [theme, setTheme] = useState<Theme>(getInitialTheme);
+  const theme: Theme = 'dark';
 
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', theme === 'dark');
-    localStorage.setItem('kup50-theme', theme);
-  }, [theme]);
+    document.documentElement.classList.add('dark');
+    localStorage.setItem('kup50-theme', 'dark');
+  }, []);
 
   const value = useMemo<ThemeContextValue>(
     () => ({
       theme,
-      setTheme,
-      toggleTheme: () =>
-        setTheme((current) => (current === 'dark' ? 'light' : 'dark')),
+      setTheme: () => undefined,
+      toggleTheme: () => undefined,
     }),
-    [theme],
+    [],
   );
 
   return (

@@ -1,4 +1,4 @@
-import { FilePlus2, Home, Settings, X, LogOut } from 'lucide-react';
+import { FilePlus2, Home, Settings, LogOut } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
 const navMain = [
@@ -13,6 +13,7 @@ const navAccount = [
 type SidebarProps = {
   open: boolean;
   onClose: () => void;
+  onLogout: () => void;
   user?: { name?: string | null; email?: string | null } | null;
   menuButton?: React.ReactNode;
 };
@@ -54,12 +55,20 @@ function NavItem({
     >
       <item.icon size={16} className="sb-link-icon" aria-hidden="true" />
       <span style={{ flex: 1 }}>{item.name}</span>
-      
     </NavLink>
   );
 }
 
-export function Sidebar({ open, onClose, user, menuButton }: SidebarProps) {
+export function Sidebar({
+  open,
+  onClose,
+  onLogout,
+  user,
+  menuButton,
+}: SidebarProps) {
+  const displayName = user?.name?.trim() || 'Full Name';
+  const displayEmail = user?.email?.trim() || 'Email';
+
   return (
     <>
       {/* Backdrop */}
@@ -130,17 +139,16 @@ export function Sidebar({ open, onClose, user, menuButton }: SidebarProps) {
               K
             </div>
             <div>
-              <p style={{ fontSize: 13, fontWeight: 700, color: '#f0e6ff', lineHeight: 1.2, letterSpacing: '0.03em' }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: '#eae9fc', lineHeight: 1.2, letterSpacing: '0.03em' }}>
                 KUP50
               </p>
-              <p style={{ fontSize: 10, color: 'rgba(199,160,255,0.45)', marginTop: 1 }}>
+              <p style={{ fontSize: 10, color: '#eae9fc', marginTop: 1 }}>
                 Reporting workspace
               </p>
             </div>
           </NavLink>
 
-        
-        </div>
+      </div>
 
         {/* Nav */}
         <nav style={{ flex: 1, padding: '10px 8px', display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -162,10 +170,10 @@ export function Sidebar({ open, onClose, user, menuButton }: SidebarProps) {
           }}
         >
           <div
-            className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8"
+            className="flex h-16 items-center justify-between px-3"
             style={{ gap: 10 }}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
               {menuButton}
               <div
                 style={{
@@ -183,26 +191,29 @@ export function Sidebar({ open, onClose, user, menuButton }: SidebarProps) {
                   flexShrink: 0,
                 }}
               >
-                {getInitials(user?.name)}
+                {getInitials(displayName)}
               </div>
-              <div className="hidden sm:block" style={{ overflow: 'hidden' }}>
+              <div className="min-w-0 flex-1">
                 <p
-                  className="text-sm font-medium topbar-name"
-                  style={{ color: '#f0e6ff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                  className="topbar-name truncate text-sm font-medium"
+                  style={{ color: '#eae9fc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                  title={displayName}
                 >
-                  {user?.name ?? 'Guest user'}
+                  {displayName}
                 </p>
                 <p
-                  className="text-xs topbar-email"
-                  style={{ color: 'rgba(199,160,255,0.45)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                  className="topbar-email truncate text-[10px]"
+                  style={{ color: '#eae9fc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                  title={displayEmail}
                 >
-                  {user?.email ?? 'Not signed in'}
+                  {displayEmail}
                 </p>
               </div>
             </div>
 
             <button
               type="button"
+              onClick={onLogout}
               aria-label="Log out"
               title="Log out"
               className="sb-icon-btn"
@@ -225,7 +236,7 @@ export function Sidebar({ open, onClose, user, menuButton }: SidebarProps) {
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.10em;
-            color: rgba(199,160,255,0.28);
+            color: #eae9fc;
             padding: 10px 8px 4px;
             display: block;
           }
@@ -238,7 +249,7 @@ export function Sidebar({ open, onClose, user, menuButton }: SidebarProps) {
             border-radius: 8px;
             font-size: 13px;
             font-weight: 500;
-            color: rgba(199,160,255,0.55);
+            color: #eae9fc;
             transition: background 0.15s, color 0.15s;
             position: relative;
             overflow: hidden;
@@ -257,12 +268,12 @@ export function Sidebar({ open, onClose, user, menuButton }: SidebarProps) {
 
           .sb-link:hover {
             background: rgba(157,0,255,0.09);
-            color: rgba(220,190,255,0.90);
+            color: #eae9fc;
           }
 
           .sb-link.active {
             background: rgba(157,0,255,0.14);
-            color: #f0e6ff;
+            color: #eae9fc;
           }
 
           .sb-link.active::after {
@@ -290,8 +301,6 @@ export function Sidebar({ open, onClose, user, menuButton }: SidebarProps) {
             45%  { transform: scale(1.28) rotate(-5deg); }
             100% { transform: scale(1); }
           }
-
-        
 
           .sb-ripple {
             position: absolute;

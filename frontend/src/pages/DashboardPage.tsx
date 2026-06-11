@@ -14,7 +14,7 @@ import {
 
 export function DashboardPage() {
   const { accessToken } = useAuth();
-  const { connectedCount } = useIntegrations();
+  const { connectedCount, connectedProviders } = useIntegrations();
   const [reports, setReports] = useState<ReportDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -86,13 +86,21 @@ export function DashboardPage() {
       }
     }
 
-    return items
-      .sort(
+    const sortedItems = items.sort(
         (a, b) =>
           new Date(b.activityUpdatedAt ?? 0).getTime() -
           new Date(a.activityUpdatedAt ?? 0).getTime(),
-      )
-      .slice(0, 10);
+      );
+    const uniqueItems = new Map<string, (typeof sortedItems)[number]>();
+
+    for (const item of sortedItems) {
+      const key = `${item.source}:${item.type}:${item.externalId}`;
+      if (!uniqueItems.has(key)) {
+        uniqueItems.set(key, item);
+      }
+    }
+
+    return [...uniqueItems.values()].slice(0, 10);
   }, [reports]);
 
   return (
@@ -100,7 +108,6 @@ export function DashboardPage() {
       <PageHeader
         className="mb-0"
         title="Dashboard"
-        description="Stored report snapshots only — no live integration calls."
         actions={
           <Link
             to="/report/new"
@@ -141,6 +148,19 @@ export function DashboardPage() {
           <p className="mt-3 text-3xl font-semibold text-ink dark:text-white">
             {connectedCount}
           </p>
+          <p className="mt-2 truncate text-xs text-[#eae9fc]">
+            {connectedProviders.length
+              ? `Connected: ${connectedProviders
+                  .map((provider) =>
+                    provider === 'JIRA'
+                      ? 'Jira'
+                      : provider === 'GITHUB'
+                        ? 'GitHub'
+                        : 'GitLab',
+                  )
+                  .join(', ')}`
+              : 'No sources connected'}
+          </p>
         </Panel>
       </div>
 
@@ -180,7 +200,7 @@ export function DashboardPage() {
               >
                 Create a report
               </Link>{' '}
-              and save a work snapshot.
+              to get started.
             </p>
           ) : (
             <div className="mt-4 divide-y divide-slate-200 dark:divide-slate-800">

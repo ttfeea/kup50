@@ -1,16 +1,26 @@
 import { Menu } from 'lucide-react';
 import { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import { Sidebar } from './Sidebar';
 
 export function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  function handleLogout() {
+    logout();
+    navigate('/login', { replace: true });
+  }
 
   return (
     <div className="min-h-screen text-ink dark:text-slate-100">
       <Sidebar
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        user={user}
+        onLogout={handleLogout}
         menuButton={
           <button
             type="button"
