@@ -119,6 +119,7 @@ export class JiraClient extends BaseClient {
           baseUrl,
           auth,
           issue.key,
+          stageKey,
         );
 
         return {
@@ -151,6 +152,7 @@ export class JiraClient extends BaseClient {
     baseUrl: string,
     auth: string,
     issueKey: string,
+    stageKey?: string,
   ): Promise<RepositoryLink[]> {
     try {
       const links = await this.requestJiraJson<JiraRemoteLink[]>(
@@ -163,17 +165,24 @@ export class JiraClient extends BaseClient {
         },
       );
       const byUrl = new Map<string, RepositoryLink>();
+      const excludedResources = new Set(
+        [issueKey, stageKey]
+          .filter((key): key is string => Boolean(key))
+          .map((key) => this.evidenceResourceKey(`${baseUrl}/browse/${key}`)),
+      );
 
       for (const link of links) {
-        const url = link.object?.url?.trim();
-        if (!url || !this.isRepositoryUrl(url)) {
+        const url = this.normalizeEvidenceUrl(link.object?.url);
+        if (!url || excludedResources.has(this.evidenceResourceKey(url))) {
           continue;
         }
 
-        byUrl.set(url, {
-          label: link.object?.title?.trim() || url,
-          url,
-        });
+        if (!byUrl.has(url)) {
+          byUrl.set(url, {
+            label: link.object?.title?.trim() || url,
+            url,
+          });
+        }
       }
 
       return [...byUrl.values()];
@@ -187,24 +196,40 @@ export class JiraClient extends BaseClient {
     }
   }
 
-  private isRepositoryUrl(value: string) {
+  private normalizeEvidenceUrl(value?: string) {
+    const trimmed = value?.trim();
+    if (!trimmed) {
+      return '';
+    }
+
+    try {
+      const url = new URL(trimmed);
+      if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+        return '';
+      }
+
+      url.hash = '';
+      for (const key of [...url.searchParams.keys()]) {
+        if (key.toLowerCase().startsWith('utm_')) {
+          url.searchParams.delete(key);
+        }
+      }
+      if (url.pathname !== '/') {
+        url.pathname = url.pathname.replace(/\/+$/, '');
+      }
+
+      return url.toString();
+    } catch {
+      return '';
+    }
+  }
+
+  private evidenceResourceKey(value: string) {
     try {
       const url = new URL(value);
-      const hostname = url.hostname.toLowerCase();
-      const pathname = url.pathname.toLowerCase();
-
-      return (
-        /\/(pull|pull-requests|merge_requests)\//.test(pathname) ||
-        hostname === 'github.com' ||
-        hostname.endsWith('.github.com') ||
-        hostname === 'gitlab.com' ||
-        hostname.endsWith('.gitlab.com') ||
-        hostname === 'bitbucket.org' ||
-        hostname.endsWith('.bitbucket.org') ||
-        /(^|[.-])(github|gitlab|bitbucket)([.-]|$)/.test(hostname)
-      );
+      return `${url.origin.toLowerCase()}${url.pathname.replace(/\/+$/, '')}`;
     } catch {
-      return false;
+      return value;
     }
   }
 

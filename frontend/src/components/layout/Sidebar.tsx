@@ -86,8 +86,8 @@ export function Sidebar({
         }`}
         style={{
           background: '#0e0618',
-          borderRight: '1px solid rgba(157,0,255,0.18)',
-          boxShadow: '4px 0 40px rgba(157,0,255,0.10)',
+          borderRight: '1px solid rgba(136,33,232,0.18)',
+          boxShadow: '4px 0 40px rgba(136,33,232,0.10)',
         }}
       >
         {/* Ambient glow */}
@@ -100,7 +100,7 @@ export function Sidebar({
             width: 220,
             height: 220,
             borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(157,0,255,0.09) 0%, transparent 70%)',
+            background: 'radial-gradient(circle, rgba(136,33,232,0.09) 0%, transparent 70%)',
             pointerEvents: 'none',
           }}
         />
@@ -112,7 +112,7 @@ export function Sidebar({
             display: 'flex',
             alignItems: 'center',
             gap: 10,
-            borderBottom: '1px solid rgba(157,0,255,0.10)',
+            borderBottom: '1px solid rgba(136,33,232,0.10)',
           }}
         >
           <NavLink
@@ -125,7 +125,7 @@ export function Sidebar({
                 width: 32,
                 height: 32,
                 borderRadius: 8,
-                background: 'linear-gradient(135deg, #6600bb, #cc44ff)',
+                background: '#8821e8',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -166,7 +166,7 @@ export function Sidebar({
         {/* User footer */}
         <div
           style={{
-            borderTop: '1px solid rgba(157,0,255,0.10)',
+            borderTop: '1px solid rgba(136,33,232,0.10)',
           }}
         >
           <div
@@ -180,14 +180,14 @@ export function Sidebar({
                   width: 30,
                   height: 30,
                   borderRadius: '50%',
-                  background: 'rgba(157,0,255,0.18)',
-                  border: '1px solid rgba(157,0,255,0.25)',
+                  background: 'rgba(136,33,232,0.18)',
+                  border: '1px solid rgba(136,33,232,0.25)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontSize: 11,
                   fontWeight: 700,
-                  color: '#bf3fff',
+                  color: '#8821e8',
                   flexShrink: 0,
                 }}
               >
@@ -226,9 +226,9 @@ export function Sidebar({
         {/* Styles */}
         <style>{`
           @keyframes kup50-pulse {
-            0%   { box-shadow: 0 0 0 0 rgba(157,0,255,0.50); }
-            65%  { box-shadow: 0 0 0 7px rgba(157,0,255,0); }
-            100% { box-shadow: 0 0 0 0 rgba(157,0,255,0); }
+            0%   { box-shadow: 0 0 0 0 rgba(136,33,232,0.50); }
+            65%  { box-shadow: 0 0 0 7px rgba(136,33,232,0); }
+            100% { box-shadow: 0 0 0 0 rgba(136,33,232,0); }
           }
 
           .sb-group-label {
@@ -261,18 +261,18 @@ export function Sidebar({
             right: 0; top: 20%; bottom: 20%;
             width: 2.5px;
             border-radius: 2px 0 0 2px;
-            background: #9d00ff;
+            background: #8821e8;
             transform: scaleY(0);
             transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1);
           }
 
           .sb-link:hover {
-            background: rgba(157,0,255,0.09);
+            background: rgba(136,33,232,0.09);
             color: #eae9fc;
           }
 
           .sb-link.active {
-            background: rgba(157,0,255,0.14);
+            background: rgba(136,33,232,0.14);
             color: #eae9fc;
           }
 
@@ -287,12 +287,12 @@ export function Sidebar({
           }
 
           .sb-link:hover .sb-link-icon {
-            color: #bf3fff;
+            color: #8821e8;
             transform: translateX(1px);
           }
 
           .sb-link.active .sb-link-icon {
-            color: #9d00ff;
+            color: #8821e8;
             animation: sb-icon-bounce 0.32s cubic-bezier(0.34,1.56,0.64,1);
           }
 
@@ -307,7 +307,7 @@ export function Sidebar({
             width: 70px;
             height: 70px;
             border-radius: 50%;
-            background: rgba(157,0,255,0.18);
+            background: rgba(136,33,232,0.18);
             pointer-events: none;
             animation: sb-ripple-out 0.45s ease-out forwards;
           }
@@ -321,7 +321,7 @@ export function Sidebar({
             width: 26px;
             height: 26px;
             border-radius: 6px;
-            border: 1px solid rgba(157,0,255,0.15);
+            border: 1px solid rgba(136,33,232,0.15);
             background: transparent;
             display: flex;
             align-items: center;
@@ -333,8 +333,8 @@ export function Sidebar({
           }
 
           .sb-icon-btn:hover {
-            background: rgba(157,0,255,0.14);
-            color: #bf3fff;
+            background: rgba(136,33,232,0.14);
+            color: #8821e8;
           }
         `}</style>
       </aside>

@@ -74,15 +74,15 @@ export function LoginPage() {
     width: '100%',
     padding: '13px 18px',
     borderRadius: 12,
-    background: focused ? 'rgba(157,0,255,0.10)' : 'rgba(255,255,255,0.07)',
+    background: focused ? 'rgba(136,33,232,0.10)' : 'rgba(255,255,255,0.07)',
     border: `1px solid ${
       error && !focused
         ? 'rgba(255,80,80,0.60)'
         : focused
-          ? 'rgba(157,0,255,0.70)'
+          ? 'rgba(136,33,232,0.70)'
           : 'rgba(255,255,255,0.10)'
     }`,
-    boxShadow: focused ? '0 0 0 3px rgba(157,0,255,0.15)' : 'none',
+    boxShadow: focused ? '0 0 0 3px rgba(136,33,232,0.15)' : 'none',
     color: '#ffffff',
     fontSize: 14,
     outline: 'none',
@@ -109,12 +109,12 @@ export function LoginPage() {
         }
         @keyframes login-neon-border {
           0%,100% {
-            border-color: rgba(157,0,255,0.22);
+            border-color: rgba(136,33,232,0.22);
             box-shadow: 0 0 100px rgba(100,0,200,0.22), 0 40px 80px rgba(0,0,0,0.55);
           }
           50% {
             border-color: rgba(191,63,255,0.45);
-            box-shadow: 0 0 120px rgba(157,0,255,0.32), 0 40px 80px rgba(0,0,0,0.55);
+            box-shadow: 0 0 120px rgba(136,33,232,0.32), 0 40px 80px rgba(0,0,0,0.55);
           }
         }
 
@@ -157,7 +157,7 @@ export function LoginPage() {
           margin-top: 28px;
           padding: 13px 52px;
           border-radius: 30px;
-          background: linear-gradient(135deg, #9d00ff, #bf3fff);
+          background: #8821e8;
           border: none;
           color: #ffffff;
           font-weight: 700;
@@ -165,13 +165,13 @@ export function LoginPage() {
           letter-spacing: 0.12em;
           text-transform: uppercase;
           cursor: pointer;
-          box-shadow: 0 4px 22px rgba(157,0,255,0.50);
+          box-shadow: 0 4px 22px rgba(136,33,232,0.50);
           transition: transform 0.25s ease, box-shadow 0.25s ease;
           font-family: 'Syne', sans-serif;
         }
         .login-btn:hover:not(:disabled) {
           transform: translateY(-2px);
-          box-shadow: 0 8px 32px rgba(157,0,255,0.65);
+          box-shadow: 0 8px 32px rgba(136,33,232,0.65);
         }
         .login-btn:disabled {
           opacity: 0.65;
@@ -193,7 +193,7 @@ export function LoginPage() {
         {/* ambient orbs */}
         <div style={{
           position: 'absolute', width: 380, height: 380, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(157,0,255,0.14) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(136,33,232,0.14) 0%, transparent 70%)',
           top: -80, left: -80, pointerEvents: 'none',
           animation: 'orb-drift 12s ease-in-out infinite',
         }} />
@@ -211,7 +211,7 @@ export function LoginPage() {
             top: (r as any).top, left: (r as any).left,
             right: (r as any).right, bottom: (r as any).bottom,
             width: r.size, height: r.size,
-            border: '1.5px solid rgba(157,0,255,0.20)',
+            border: '1.5px solid rgba(136,33,232,0.20)',
             borderRadius: 10,
             animation: `float ${6 + i * 2}s ease-in-out infinite ${r.delay}`,
             pointerEvents: 'none',

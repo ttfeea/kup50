@@ -82,6 +82,12 @@ describe('IntegrationService', () => {
 
     expect(prisma.integrationToken.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
+        where: {
+          userId_provider: {
+            userId: 'user-1',
+            provider: ReportItemSource.GITLAB,
+          },
+        },
         create: expect.objectContaining({
           token: 'glpat-token',
           baseUrl: 'https://gitlab.example.com',
@@ -146,6 +152,45 @@ describe('IntegrationService', () => {
 
   it('accepts lowercase provider names', () => {
     expect(service.parseProvider('gitlab')).toBe(ReportItemSource.GITLAB);
+  });
+
+  it('scopes integration listing and deletion to the authenticated user', async () => {
+    prisma.integrationToken.findMany.mockResolvedValue([]);
+    prisma.integrationToken.deleteMany.mockResolvedValue({ count: 0 });
+
+    await service.listTokens('user-b');
+    await service.disconnect('user-b', ReportItemSource.JIRA);
+
+    expect(prisma.integrationToken.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { userId: 'user-b' } }),
+    );
+    expect(prisma.integrationToken.deleteMany).toHaveBeenCalledWith({
+      where: { userId: 'user-b', provider: ReportItemSource.JIRA },
+    });
+  });
+
+  it('cannot read or validate another user integration token', async () => {
+    prisma.integrationToken.findUnique.mockResolvedValue(null);
+
+    await expect(
+      service.fetchItems('user-b', ReportItemSource.JIRA),
+    ).rejects.toThrow('Integration token not found');
+    const status = await service.checkConnection(
+      'user-b',
+      ReportItemSource.JIRA,
+    );
+
+    expect(prisma.integrationToken.findUnique).toHaveBeenCalledWith({
+      where: {
+        userId_provider: {
+          userId: 'user-b',
+          provider: ReportItemSource.JIRA,
+        },
+      },
+    });
+    expect(status.connected).toBe(false);
+    expect(jiraClient.fetchRecentItems).not.toHaveBeenCalled();
+    expect(jiraClient.validateToken).not.toHaveBeenCalled();
   });
 
   it('returns validated integration status when checking a stored token', async () => {
@@ -316,6 +361,7 @@ describe('IntegrationService', () => {
     expect(result.items[0].metadata?.repoLinks).toBe(
       'https://github.com/example/app/pull/42',
     );
+    expect(gitHubClient.fetchRecentItems).not.toHaveBeenCalled();
   });
 
   it('leaves repository links empty when Jira and fallback have no links', async () => {
@@ -362,7 +408,7 @@ describe('IntegrationService', () => {
     expect(result.items[0].metadata?.repoLinks).toBe('');
   });
 
-  it('uses one provider search link when more than four MRs match', async () => {
+  it('keeps original links and adds a provider summary when more than four MRs match', async () => {
     prisma.integrationToken.findMany.mockResolvedValue([
       {
         id: 'jira-token',
@@ -404,11 +450,22 @@ describe('IntegrationService', () => {
 
     const result = await service.fetchConfiguredItems('user-1');
 
-    expect(result.items[0].metadata?.repositoryLinks).toEqual([
+    expect(result.items[0].metadata?.repositoryLinks).toHaveLength(5);
+    expect(result.items[0].metadata?.repositorySummaryLinks).toEqual([
       {
         label: 'View all MRs for KUP-42',
         url: 'https://gitlab.example.com/dashboard/merge_requests?search=KUP-42',
       },
     ]);
+    expect(result.items[0].metadata?.repositoryLinksCollapsed).toBe(true);
+  });
+
+  it('rejects an inverted manual date range', async () => {
+    await expect(
+      service.fetchConfiguredItems('user-1', {
+        since: new Date('2026-06-10T00:00:00.000Z'),
+        until: new Date('2026-06-01T23:59:59.999Z'),
+      }),
+    ).rejects.toThrow('Report period start must be before period end');
   });
 });

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
   attachReportItems,
@@ -18,8 +19,6 @@ import {
 } from '../types/report-row';
 import { normalizeWorkItemsToRows } from '../types/report-normalizer';
 
-const periodOptions = [30, 45] as const;
-
 type RepositoryLink = {
   label: string;
   url: string;
@@ -34,6 +33,7 @@ type BuilderRow = ReportRow & {
   url?: string;
   stageUrl?: string;
   repositoryLinks: RepositoryLink[];
+  repositorySummaryLinks: RepositoryLink[];
   activityCreatedAt: string;
   activityUpdatedAt: string;
 };
@@ -42,14 +42,16 @@ function createRowId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function getReportPeriodStart(periodDays: number) {
-  return new Date(
-    Date.now() - (periodDays - 1) * 24 * 60 * 60 * 1000,
-  ).toISOString();
-}
-
 function toDateInputValue(date: Date) {
   return date.toISOString().slice(0, 10);
+}
+
+function toPeriodStart(date: string) {
+  return `${date}T00:00:00.000Z`;
+}
+
+function toPeriodEnd(date: string) {
+  return `${date}T23:59:59.999Z`;
 }
 
 function formatPeriodRange(start: string, end: string) {
@@ -63,7 +65,8 @@ function formatPeriodRange(start: string, end: string) {
 }
 
 function renderRepositoryLinks(value: string) {
-  return value.split('\n').map((line, index) => {
+  const lines = value.split('\n').filter((line) => line.trim());
+  const rendered = lines.map((line, index) => {
     const link = line.trim();
 
     return link.startsWith('http') ? (
@@ -72,7 +75,7 @@ function renderRepositoryLinks(value: string) {
         href={link}
         target="_blank"
         rel="noreferrer"
-        className="block text-[#d966ff] underline hover:text-[#bf3fff] transition-colors"
+        className="block text-primary underline transition-colors hover:text-white"
       >
         {link}
       </a>
@@ -82,6 +85,32 @@ function renderRepositoryLinks(value: string) {
       </span>
     );
   });
+
+  return lines.length > 4 ? (
+    <details>
+      <summary className="cursor-pointer text-primary underline">
+        View all links ({lines.length})
+      </summary>
+      <div className="mt-2 space-y-1">{rendered}</div>
+    </details>
+  ) : (
+    rendered
+  );
+}
+
+function linksFromText(value: string, current: RepositoryLink[]) {
+  const labels = new Map(current.map((link) => [link.url, link.label]));
+  const links = new Map<string, RepositoryLink>();
+
+  for (const line of value.split('\n')) {
+    const url = line.trim();
+    if (!/^https?:\/\//i.test(url) || links.has(url)) {
+      continue;
+    }
+    links.set(url, { label: labels.get(url) || url, url });
+  }
+
+  return [...links.values()];
 }
 
 function buildReportRows(
@@ -115,6 +144,14 @@ function buildReportRows(
         : undefined,
     repositoryLinks: Array.isArray(item.metadata?.repositoryLinks)
       ? (item.metadata.repositoryLinks as RepositoryLink[]).filter(
+          (link) =>
+            typeof link?.label === 'string' && typeof link?.url === 'string',
+        )
+      : [],
+    repositorySummaryLinks: Array.isArray(
+      item.metadata?.repositorySummaryLinks,
+    )
+      ? (item.metadata.repositorySummaryLinks as RepositoryLink[]).filter(
           (link) =>
             typeof link?.label === 'string' && typeof link?.url === 'string',
         )
@@ -154,6 +191,7 @@ function generateManualRow(
     url: undefined,
     stageUrl: undefined,
     repositoryLinks: [],
+    repositorySummaryLinks: [],
     activityCreatedAt: timestamp,
     activityUpdatedAt: timestamp,
     employeeId: userInfo.employeeId || '',
@@ -184,7 +222,6 @@ export function NewReportPage() {
   const [showFullPreview, setShowFullPreview] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [pendingLocation, setPendingLocation] = useState<string | null>(null);
-  const [periodDays, setPeriodDays] = useState<number>(30);
   const [customPeriodStart, setCustomPeriodStart] = useState(() =>
     toDateInputValue(new Date(Date.now() - 29 * 24 * 60 * 60 * 1000)),
   );
@@ -192,20 +229,13 @@ export function NewReportPage() {
     toDateInputValue(new Date()),
   );
 
-  const activePeriodDays = periodDays === 0 ? 30 : periodDays;
   const reportPeriodStart = useMemo(
-    () =>
-      periodDays === 0
-        ? new Date(`${customPeriodStart}T00:00:00`).toISOString()
-        : getReportPeriodStart(activePeriodDays),
-    [activePeriodDays, customPeriodStart, periodDays],
+    () => toPeriodStart(customPeriodStart),
+    [customPeriodStart],
   );
   const reportPeriodEnd = useMemo(
-    () =>
-      periodDays === 0
-        ? new Date(`${customPeriodEnd}T23:59:59.999`).toISOString()
-        : new Date().toISOString(),
-    [customPeriodEnd, periodDays],
+    () => toPeriodEnd(customPeriodEnd),
+    [customPeriodEnd],
   );
   const reportInfo = useMemo(
     () => ({
@@ -267,16 +297,20 @@ export function NewReportPage() {
     setMessage(null);
 
     try {
+      if (
+        !customPeriodStart ||
+        !customPeriodEnd ||
+        customPeriodStart > customPeriodEnd
+      ) {
+        throw new Error('From date must be on or before To date.');
+      }
+
       const items = await previewIntegrationItems(
         accessToken,
         100,
-        activePeriodDays,
-        periodDays === 0
-          ? new Date(`${customPeriodStart}T00:00:00`).toISOString()
-          : undefined,
-        periodDays === 0
-          ? new Date(`${customPeriodEnd}T23:59:59.999`).toISOString()
-          : undefined,
+        30,
+        toPeriodStart(customPeriodStart),
+        toPeriodEnd(customPeriodEnd),
       );
       const userInfo = currentUser
         ? (() => {
@@ -341,7 +375,16 @@ export function NewReportPage() {
       const next = [...current];
       const row = next[index];
       if (row) {
-        next[index] = { ...row, [field]: value };
+        next[index] = {
+          ...row,
+          [field]: value,
+          ...(field === 'repoLinks'
+            ? {
+                repositoryLinks: linksFromText(value, row.repositoryLinks),
+                repositorySummaryLinks: [],
+              }
+            : {}),
+        };
       }
       return next;
     });
@@ -364,6 +407,15 @@ export function NewReportPage() {
       return;
     }
 
+    if (
+      !customPeriodStart ||
+      !customPeriodEnd ||
+      customPeriodStart > customPeriodEnd
+    ) {
+      setError('From date must be on or before To date.');
+      return;
+    }
+
     const invalidManual = rows.find(
       (row) => row.source === 'MANUAL' && !row.workTitles.trim(),
     );
@@ -380,13 +432,9 @@ export function NewReportPage() {
     try {
       const report = await createReport(
         accessToken,
-        activePeriodDays,
-        periodDays === 0
-          ? new Date(`${customPeriodStart}T00:00:00`).toISOString()
-          : undefined,
-        periodDays === 0
-          ? new Date(`${customPeriodEnd}T23:59:59.999`).toISOString()
-          : undefined,
+        30,
+        toPeriodStart(customPeriodStart),
+        toPeriodEnd(customPeriodEnd),
       );
       const itemsToAttach = rows.map((row) => ({
         source: row.source,
@@ -405,6 +453,8 @@ export function NewReportPage() {
           repoLinks: row.repoLinks,
           stageUrl: row.stageUrl,
           repositoryLinks: row.repositoryLinks,
+          repositorySummaryLinks: row.repositorySummaryLinks,
+          repositoryLinksCollapsed: row.repositoryLinks.length > 4,
         },
       }));
 
@@ -461,8 +511,6 @@ export function NewReportPage() {
   }
 
   const canSaveDraft = rows.length > 0 && !saving;
-  const isCustomPeriod = periodDays === 0;
-
   return (
     <div className="new-report-page page-shell page-view space-y-6">
 
@@ -486,7 +534,7 @@ export function NewReportPage() {
         </div>
       ) : null}
       {error ? (
-        <div className="rounded-2xl border border-rose-400/25 bg-[rgba(157,0,255,0.10)] px-4 py-3 text-sm text-rose-100 shadow-rose-500/10">
+        <div className="rounded-2xl border border-rose-400/25 bg-rose-500/10 px-4 py-3 text-sm text-rose-100 shadow-rose-500/10">
           {error}
         </div>
       ) : null}
@@ -531,60 +579,36 @@ export function NewReportPage() {
           <h2 className="text-base font-semibold text-ink dark:text-white">
             Report builder
           </h2>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[auto_auto_1fr_auto_auto] lg:items-end">
+          <div className="mt-4 flex flex-wrap items-end gap-3">
             <label className="flex flex-col gap-1 text-sm text-ink-muted dark:text-slate-400">
-              <span>Period</span>
-              <select
-                value={periodDays}
-                onChange={(event) => setPeriodDays(Number(event.target.value))}
-                className="input-glass period-select min-w-[150px]"
-              >
-                {periodOptions.map((value) => (
-                  <option key={value} value={value}>
-                    Last {value} days
-                  </option>
-                ))}
-                <option value={0}>Custom</option>
-              </select>
+              <span>From date</span>
+              <input
+                type="date"
+                value={customPeriodStart}
+                max={customPeriodEnd}
+                onChange={(event) =>
+                  setCustomPeriodStart(event.target.value)
+                }
+                className="input-glass"
+              />
             </label>
-            {isCustomPeriod ? (
-              <>
-                <label className="flex flex-col gap-1 text-sm text-ink-muted dark:text-slate-400">
-                  <span>From</span>
-                  <input
-                    type="date"
-                    value={customPeriodStart}
-                    onChange={(event) =>
-                      setCustomPeriodStart(event.target.value)
-                    }
-                    className="input-glass"
-                  />
-                </label>
-                <label className="flex flex-col gap-1 text-sm text-ink-muted dark:text-slate-400">
-                  <span>To</span>
-                  <input
-                    type="date"
-                    value={customPeriodEnd}
-                    onChange={(event) => setCustomPeriodEnd(event.target.value)}
-                    className="input-glass"
-                  />
-                </label>
-              </>
-            ) : null}
+            <label className="flex flex-col gap-1 text-sm text-ink-muted dark:text-slate-400">
+              <span>To date</span>
+              <input
+                type="date"
+                value={customPeriodEnd}
+                min={customPeriodStart}
+                onChange={(event) => setCustomPeriodEnd(event.target.value)}
+                className="input-glass"
+              />
+            </label>
             <button
               type="button"
               onClick={() => void handleFetchItems()}
               disabled={loadingItems}
-              className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-70 lg:col-start-4"
+              className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
             >
               {loadingItems ? 'Loading…' : 'Load items'}
-            </button>
-            <button
-              type="button"
-              onClick={handleAddManualRow}
-              className="btn-outline w-full"
-            >
-              Add manual row
             </button>
           </div>
         </div>
@@ -594,33 +618,38 @@ export function NewReportPage() {
             No rows loaded.
           </p>
         ) : (
-          <div className="mt-5 overflow-x-auto rounded-2xl border border-white/10 bg-black/10 shadow-[0_12px_30px_rgba(157,0,255,0.12)]">
-            <table className="w-full min-w-[900px] table-fixed text-left text-sm text-[#eae9fc]">
+          <div className="mt-5 overflow-x-auto rounded-2xl border border-white/10 bg-black/10 shadow-[0_12px_30px_rgba(136,33,232,0.12)]">
+            <table className="w-full min-w-[940px] table-fixed text-left text-sm text-[#eae9fc]">
               <colgroup>
-                <col className="w-[34%]" />
-                <col className="w-[30%]" />
-                <col className="w-[36%]" />
+                <col className="w-[33%]" />
+                <col className="w-[29%]" />
+                <col className="w-[33%]" />
+                <col className="w-[5%]" />
               </colgroup>
               <thead className="bg-white/[0.08] text-xs uppercase tracking-wide text-[#eae9fc] backdrop-blur-sm">
                 <tr>
                   <th className="sticky top-0 border-b border-white/10 px-3 py-3 text-left text-white/80">
-                    Creative Work Titles
+                    Work Titles
                   </th>
                   <th className="sticky top-0 border-b border-white/10 px-3 py-3 text-left text-white/80">
-                    Creative Work Stages
+                    Work Stages
                   </th>
                   <th className="sticky top-0 border-b border-white/10 px-3 py-3 text-left text-white/80">
                     Repository Links
                   </th>
+                  <th
+                    className="sticky top-0 border-b border-white/10 px-2 py-3 text-center text-white/80"
+                    aria-label="Row actions"
+                  />
                 </tr>
               </thead>
               <tbody>
                 {rows.map((row, rowIndex) => (
                   <tr
                     key={row.rowId}
-                    className="border-b border-white/10 align-top transition-colors last:border-b-0 hover:bg-violet-500/[0.06]"
+                    className="border-b border-white/10 align-middle transition-colors last:border-b-0 hover:bg-violet-500/[0.06]"
                   >
-                    <td className="px-4 py-4">
+                    <td className="px-4 py-4 align-middle">
                       <input
                         value={row.workTitles}
                         placeholder="Creative work title"
@@ -634,14 +663,14 @@ export function NewReportPage() {
                           href={row.url}
                           target="_blank"
                           rel="noreferrer"
-                          className="mt-2 block truncate text-xs text-violet-200 underline transition-colors hover:text-white"
+                          className="mt-2 block truncate text-xs text-primary underline transition-colors hover:text-white"
                           title={row.url}
                         >
                           Open Jira task
                         </a>
                       ) : null}
                     </td>
-                    <td className="px-4 py-4">
+                    <td className="px-4 py-4 align-middle">
                       <input
                         value={row.workStages}
                         placeholder="Creative work stage"
@@ -655,44 +684,38 @@ export function NewReportPage() {
                           href={row.stageUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="mt-2 block truncate text-xs text-violet-200 underline transition-colors hover:text-white"
+                          className="mt-2 block truncate text-xs text-primary underline transition-colors hover:text-white"
                           title={row.stageUrl}
                         >
                           Open Jira stage
                         </a>
                       ) : null}
                     </td>
-                    <td className="px-4 py-4">
-                      <div className="space-y-2">
-                        <textarea
-                          value={row.repoLinks}
-                          placeholder="Repository links"
-                          onChange={(event) =>
-                            updateRowField(rowIndex, 'repoLinks', event.target.value)
-                          }
-                          rows={Math.max(2, row.repositoryLinks.length)}
-                          className="input-glass min-h-[72px] w-full resize-y break-all"
-                        />
-                        {row.repositoryLinks.map((link) => (
-                          <a
-                            key={link.url}
-                            href={link.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="block max-w-full truncate text-xs text-violet-200 underline transition-colors hover:text-white"
-                            title={link.url}
-                          >
-                            {link.label}
-                          </a>
-                        ))}
-                        <button
-                          type="button"
-                          onClick={() => deleteRow(rowIndex)}
-                          className="btn-outline border-rose-400/30 text-rose-300 hover:bg-rose-500/10 text-xs w-full sm:w-auto"
-                        >
-                          Delete
-                        </button>
-                      </div>
+                    <td className="px-4 py-4 align-middle">
+                      <textarea
+                        value={row.repoLinks}
+                        placeholder="Repository links"
+                        onChange={(event) =>
+                          updateRowField(
+                            rowIndex,
+                            'repoLinks',
+                            event.target.value,
+                          )
+                        }
+                        rows={Math.max(2, Math.min(4, row.repositoryLinks.length))}
+                        className="input-glass min-h-[72px] w-full resize-y break-all"
+                      />
+                    </td>
+                    <td className="px-2 py-4 text-center align-middle">
+                      <button
+                        type="button"
+                        onClick={() => deleteRow(rowIndex)}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-rose-400/30 text-rose-300 transition-colors hover:bg-rose-500/10 focus:outline-none focus:ring-2 focus:ring-rose-400/50"
+                        aria-label={`Delete row ${rowIndex + 1}`}
+                        title="Delete row"
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden="true" />
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -701,23 +724,32 @@ export function NewReportPage() {
           </div>
         )}
 
-        <div className="mt-6 flex flex-col gap-3 border-t border-white/10 pt-5 sm:flex-row sm:justify-end">
+        <div className="mt-6 flex flex-col gap-3 border-t border-white/10 pt-5 sm:flex-row sm:items-center sm:justify-between">
           <button
             type="button"
-            onClick={() => { void handleSaveReport(false); }}
-            disabled={!canSaveDraft}
-            className="btn-primary w-full sm:w-auto disabled:cursor-not-allowed disabled:opacity-70"
+            onClick={handleAddManualRow}
+            className="btn-outline w-full sm:w-auto"
           >
-            {saving ? 'Saving…' : 'Save draft'}
+            Add manual row
           </button>
-          <button
-            type="button"
-            onClick={() => { void handleSaveReport(true); }}
-            disabled={!canSaveDraft}
-            className="btn-outline w-full sm:w-auto disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            {saving ? 'Saving…' : 'Save and confirm'}
-          </button>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <button
+              type="button"
+              onClick={() => { void handleSaveReport(false); }}
+              disabled={!canSaveDraft}
+              className="btn-primary w-full sm:w-auto disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {saving ? 'Saving…' : 'Save draft'}
+            </button>
+            <button
+              type="button"
+              onClick={() => { void handleSaveReport(true); }}
+              disabled={!canSaveDraft}
+              className="btn-outline w-full sm:w-auto disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {saving ? 'Saving…' : 'Save and confirm'}
+            </button>
+          </div>
         </div>
       </Panel>
 

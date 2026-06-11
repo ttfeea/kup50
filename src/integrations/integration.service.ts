@@ -203,6 +203,12 @@ export class IntegrationService {
     userId: string,
     options?: { limit?: number; since?: Date; until?: Date },
   ): Promise<{ items: WorkItem[] }> {
+    if (options?.since && options.until && options.since > options.until) {
+      throw new BadRequestException(
+        'Report period start must be before period end',
+      );
+    }
+
     const limit = options?.limit ?? 100;
     const tokens = await this.prisma.integrationToken.findMany({
       where: {
@@ -227,10 +233,23 @@ export class IntegrationService {
       options?.since,
       options?.until,
     );
+    const needsFallback = jiraItems.some((item) => {
+      const metadata = item.metadata ?? {};
+      const remoteLinks = Array.isArray(metadata.jiraRemoteLinks)
+        ? metadata.jiraRemoteLinks.filter(isRepositoryLink)
+        : [];
+      return (
+        this.cleanEvidenceLinks(remoteLinks, [
+          item.url,
+          typeof metadata.stageUrl === 'string' ? metadata.stageUrl : undefined,
+        ]).length === 0
+      );
+    });
     const gitTokens = tokens.filter(
       (token) =>
-        token.provider === ReportItemSource.GITLAB ||
-        token.provider === ReportItemSource.GITHUB,
+        needsFallback &&
+        (token.provider === ReportItemSource.GITLAB ||
+          token.provider === ReportItemSource.GITHUB),
     );
     const gitResults = await Promise.allSettled(
       gitTokens.map((token) =>
@@ -280,25 +299,36 @@ export class IntegrationService {
     const jiraKey = jiraItem.externalId.trim();
     const jiraName = jiraItem.title.replace(jiraKey, '').trim();
     const metadata = jiraItem.metadata ?? {};
-    const jiraRemoteLinks = Array.isArray(metadata.jiraRemoteLinks)
-      ? metadata.jiraRemoteLinks.filter(isRepositoryLink)
-      : [];
+    const excludedUrls = [
+      jiraItem.url,
+      typeof metadata.stageUrl === 'string' ? metadata.stageUrl : undefined,
+    ];
+    const jiraRemoteLinks = this.cleanEvidenceLinks(
+      Array.isArray(metadata.jiraRemoteLinks)
+        ? metadata.jiraRemoteLinks.filter(isRepositoryLink)
+        : [],
+      excludedUrls,
+    );
     const matches =
       jiraRemoteLinks.length > 0
         ? []
         : mergeRequests.filter((item) =>
             this.matchesJiraItem(item, jiraKey, jiraName),
           );
+    const fallbackLinks = this.cleanEvidenceLinks(
+      matches.flatMap((item) =>
+        item.url ? [{ label: item.title || item.url, url: item.url }] : [],
+      ),
+      excludedUrls,
+    );
     const repositoryLinks =
       jiraRemoteLinks.length > 0
         ? jiraRemoteLinks
-        : matches.length > 4
-          ? this.buildProviderSearchLinks(matches, jiraKey)
-          : matches.flatMap((item) =>
-              item.url
-                ? [{ label: item.title || item.url, url: item.url }]
-                : [],
-            );
+        : fallbackLinks;
+    const repositorySummaryLinks =
+      jiraRemoteLinks.length === 0 && repositoryLinks.length > 4
+        ? this.buildProviderSearchLinks(matches, jiraKey)
+        : [];
     const stageName =
       typeof metadata.stageName === 'string' ? metadata.stageName : '';
 
@@ -309,9 +339,79 @@ export class IntegrationService {
         workTitles: jiraItem.title,
         workStages: stageName,
         repositoryLinks,
+        repositorySummaryLinks,
+        repositoryLinksCollapsed: repositoryLinks.length > 4,
         repoLinks: repositoryLinks.map((link) => link.url).join('\n'),
       },
     };
+  }
+
+  private cleanEvidenceLinks(
+    links: Array<{ label: string; url: string }>,
+    excludedUrls: Array<string | undefined> = [],
+  ) {
+    const excluded = new Set(
+      excludedUrls
+        .map((value) => this.evidenceResourceKey(value))
+        .filter(Boolean),
+    );
+    const unique = new Map<string, { label: string; url: string }>();
+
+    for (const link of links) {
+      const url = this.normalizeEvidenceUrl(link.url);
+      if (
+        !url ||
+        excluded.has(this.evidenceResourceKey(url)) ||
+        unique.has(url)
+      ) {
+        continue;
+      }
+
+      unique.set(url, {
+        label: link.label.trim() || url,
+        url,
+      });
+    }
+
+    return [...unique.values()];
+  }
+
+  private normalizeEvidenceUrl(value?: string) {
+    const trimmed = value?.trim();
+    if (!trimmed) {
+      return '';
+    }
+
+    try {
+      const url = new URL(trimmed);
+      if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+        return '';
+      }
+
+      url.hash = '';
+      for (const key of [...url.searchParams.keys()]) {
+        if (key.toLowerCase().startsWith('utm_')) {
+          url.searchParams.delete(key);
+        }
+      }
+      if (url.pathname !== '/') {
+        url.pathname = url.pathname.replace(/\/+$/, '');
+      }
+
+      return url.toString();
+    } catch {
+      return '';
+    }
+  }
+
+  private evidenceResourceKey(value?: string) {
+    const normalized = this.normalizeEvidenceUrl(value);
+    if (!normalized) {
+      return '';
+    }
+
+    const url = new URL(normalized);
+    return `${url.origin.toLowerCase()}${url.pathname.replace(/\/+$/, '')}`;
   }
 
   private matchesJiraItem(

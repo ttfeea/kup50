@@ -27,6 +27,9 @@ const DEFAULT_EMAIL_SUBJECT =
 const DEFAULT_EMAIL_BODY =
   'Dzień dobry,\n\nprzesyłam raport KUP50 za okres {{periodStart}} – {{periodEnd}}.\n\nPozdrawiam,\n{{fullname}}';
 
+const REMOVED_EMAIL_SENTENCE =
+  'Tabela raportu znajduje się poniżej. Plik XLSX można również pobrać z aplikacji i dodać jako załącznik.';
+
 const FINAL_REPORT_HEADERS = [
   'Employee ID',
   'Imię i nazwisko Pracownika / Name Surname',
@@ -279,7 +282,9 @@ export class ReportsService {
         values,
       ),
       body: this.renderTemplate(
-        user.reportEmailBodyTemplate?.trim() || DEFAULT_EMAIL_BODY,
+        this.cleanEmailBodyTemplate(
+          user.reportEmailBodyTemplate?.trim() || DEFAULT_EMAIL_BODY,
+        ),
         values,
       ),
       tablePreviewHtml: this.buildTablePreviewHtml(output.rows),
@@ -557,6 +562,13 @@ export class ReportsService {
       /{{(month|fullname|employeeId|managerName|periodStart|periodEnd)}}/g,
       (_, key: string) => values[key] ?? '',
     );
+  }
+
+  private cleanEmailBodyTemplate(template: string) {
+    return template
+      .replace(REMOVED_EMAIL_SENTENCE, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
   }
 
   private getXlsxFileName(month: string, fullname: string) {

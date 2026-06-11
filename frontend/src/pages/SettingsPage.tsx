@@ -125,7 +125,7 @@ export function SettingsPage() {
       />
 
       {message ? (
-        <div className="rounded-[10px] border border-[rgba(157,0,255,0.25)] bg-[rgba(157,0,255,0.08)] px-4 py-3 text-sm text-[#d966ff]">
+        <div className="rounded-[10px] border border-success/30 bg-success/10 px-4 py-3 text-sm text-success">
           {message}
         </div>
       ) : null}
@@ -305,7 +305,7 @@ export function SettingsPage() {
                       key={variable.value}
                       type="button"
                       onClick={() => insertTemplateVariable(variable.value)}
-                      className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700 hover:border-emerald-500 hover:text-emerald-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                      className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700 hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
                     >
                       {variable.label}
                     </button>

@@ -54,7 +54,7 @@ export const integrationGuides: Record<IntegrationProvider, IntegrationGuide> =
       },
       token: {
         hint: 'Classic PAT recommended. Fine-grained tokens need Issues (read) and profile read access.',
-        scopes: ['read:user', 'repo (required for commits on private repos)'],
+        scopes: ['read:user', 'repo (for pull requests in private repos)'],
         createUrl: 'https://github.com/settings/tokens',
       },
     },

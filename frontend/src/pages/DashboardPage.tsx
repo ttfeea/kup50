@@ -114,13 +114,13 @@ export function DashboardPage() {
       />
 
       {error ? (
-        <p className="rounded-2xl border border-rose-400/25 bg-[rgba(157,0,255,0.10)] px-3 py-2 text-sm text-rose-100">
+        <p className="rounded-2xl border border-rose-400/25 bg-rose-500/10 px-3 py-2 text-sm text-rose-100">
           {error}
         </p>
       ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Panel className="card-hover">
+        <Panel>
           <p className="text-sm text-ink-muted dark:text-slate-400">
             Open drafts
           </p>
@@ -128,14 +128,18 @@ export function DashboardPage() {
             {loading ? '…' : draftCount}
           </p>
         </Panel>
-        <Panel className="card-hover">
+        <Panel>
           <p className="text-sm text-ink-muted dark:text-slate-400">
             Connected sources
           </p>
           <p className="mt-3 text-3xl font-semibold text-ink dark:text-white">
             {connectedCount}
           </p>
-          <p className="mt-2 truncate text-xs text-[#eae9fc]">
+          <p
+            className={`mt-2 truncate text-xs ${
+              connectedProviders.length ? 'text-success' : 'text-[#eae9fc]'
+            }`}
+          >
             {connectedProviders.length
               ? `Connected: ${connectedProviders
                   .map((provider) =>
@@ -152,17 +156,28 @@ export function DashboardPage() {
       </div>
 
       {latestReport ? (
-        <Panel className="card-hover">
+        <Panel>
           <h2 className="text-base font-semibold text-ink dark:text-white">
             Latest report snapshot
           </h2>
-          <p className="mt-1 text-sm text-ink-muted dark:text-slate-400">
-            {formatReportPeriod(latestReport)} · {latestReport.status} ·{' '}
-            {latestReport.workItems.length} items
-          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-ink-muted dark:text-slate-400">
+            <span>{formatReportPeriod(latestReport)}</span>
+            <span aria-hidden="true">·</span>
+            <span
+              className={
+                latestReport.status === 'SUBMITTED'
+                  ? 'font-medium text-success'
+                  : 'font-medium text-[#EAE9FC]'
+              }
+            >
+              {latestReport.status === 'SUBMITTED' ? 'Sent' : 'Draft'}
+            </span>
+            <span aria-hidden="true">·</span>
+            <span>{latestReport.workItems.length} items</span>
+          </div>
           <Link
             to={`/report/${latestReport.id}`}
-            className="mt-3 inline-block text-sm font-semibold text-violet-200 transition hover:text-white"
+            className="mt-3 inline-flex cursor-pointer items-center rounded-lg border border-primary/35 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary transition hover:border-primary hover:bg-primary/20 hover:text-white"
           >
             View report
           </Link>
@@ -183,7 +198,7 @@ export function DashboardPage() {
               No reports yet.{' '}
               <Link
                 to="/report/new"
-                className="text-emerald-700 dark:text-emerald-300"
+                className="text-primary"
               >
                 Create a report
               </Link>{' '}
@@ -195,10 +210,18 @@ export function DashboardPage() {
                 <Link
                   key={report.id}
                   to={`/report/${report.id}`}
-                  className="grid grid-cols-3 gap-3 py-3 text-sm text-[rgba(240,230,255,0.85)] transition hover:text-violet-bright"
+                  className="my-2 grid cursor-pointer grid-cols-3 gap-3 rounded-lg border border-white/10 bg-white/[0.035] px-3 py-3 text-sm text-[rgba(240,230,255,0.85)] transition hover:border-primary/50 hover:bg-primary/10 hover:text-white"
                 >
                   <span>{formatReportPeriod(report)}</span>
-                  <span>{report.status}</span>
+                  <span
+                    className={
+                      report.status === 'SUBMITTED'
+                        ? 'font-medium text-success'
+                        : 'font-medium text-[#EAE9FC]'
+                    }
+                  >
+                    {report.status === 'SUBMITTED' ? 'Sent' : 'Draft'}
+                  </span>
                   <span className="text-right">
                     {report.workItems.length} items
                   </span>
@@ -225,12 +248,21 @@ export function DashboardPage() {
                 <Link
                   key={`${item.reportId}-${item.id ?? item.externalId}`}
                   to={`/report/${item.reportId}`}
-                  className="block rounded-xl bg-[rgba(255,255,255,0.04)] p-4 transition hover:bg-[rgba(157,0,255,0.12)]"
+                  className="block cursor-pointer rounded-xl border border-white/10 bg-[rgba(255,255,255,0.04)] p-4 transition hover:border-primary/50 hover:bg-[rgba(136,33,232,0.12)]"
                 >
                   <p className="text-sm font-medium">{item.title}</p>
                   <p className="mt-1 text-xs text-ink-muted dark:text-slate-400">
                     {workItemTypeLabels[item.type]} · {item.source} ·{' '}
-                    {formatWorkItemActivity(item)} · {item.reportStatus}
+                    {formatWorkItemActivity(item)} ·{' '}
+                    <span
+                      className={
+                        item.reportStatus === 'SUBMITTED'
+                          ? 'text-success'
+                          : 'text-[#EAE9FC]'
+                      }
+                    >
+                      {item.reportStatus === 'SUBMITTED' ? 'Sent' : 'Draft'}
+                    </span>
                   </p>
                 </Link>
               ))}

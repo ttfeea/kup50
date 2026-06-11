@@ -26,7 +26,7 @@ export function AppShell() {
             type="button"
             onClick={() => setSidebarOpen(true)}
             className="inline-flex h-9 w-9 items-center justify-center rounded-md lg:hidden"
-            style={{ border: '1px solid rgba(157,0,255,0.22)', background: 'transparent', color: 'rgba(199,160,255,0.7)', cursor: 'pointer' }}
+            style={{ border: '1px solid rgba(136,33,232,0.22)', background: 'transparent', color: '#8821e8', cursor: 'pointer' }}
             aria-label="Open navigation"
           >
             <Menu className="h-5 w-5" aria-hidden="true" />

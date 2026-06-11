@@ -34,7 +34,7 @@ const emptyForm: ProviderForm = {
 
 const statusStyles = {
   connected:
-    'border border-emerald-400/25 bg-emerald-400/10 text-emerald-200',
+    'border border-success/30 bg-success/10 text-success',
   error: 'border border-rose-400/25 bg-rose-400/10 text-rose-200',
   missing: 'border border-white/10 bg-white/5 text-[#eae9fc]',
 };
@@ -219,7 +219,7 @@ export function IntegrationSettingsPanel({
       </div>
 
       {message ? (
-        <p className="mt-4 rounded-xl border border-emerald-400/25 bg-emerald-400/10 px-3 py-2 text-sm text-emerald-200">
+        <p className="mt-4 rounded-xl border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">
           {message}
         </p>
       ) : null}
@@ -248,7 +248,7 @@ export function IntegrationSettingsPanel({
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <PlugZap className="h-4 w-4 text-violet-300" />
+                    <PlugZap className="h-4 w-4 text-primary" />
                     <p className="text-sm font-semibold text-[#eae9fc]">{provider.label}</p>
                     <span
                       className={`max-w-full rounded-full px-2.5 py-1 text-xs ${statusStyles[status]}`}
@@ -420,7 +420,7 @@ function IntegrationGuideHint({
                 href={guide.token.createUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="font-medium text-violet-200 underline underline-offset-2"
+                className="font-medium text-primary underline underline-offset-2"
               >
                 Create token
               </a>

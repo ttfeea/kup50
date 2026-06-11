@@ -26,4 +26,30 @@ describe('UsersService', () => {
       }),
     });
   });
+
+  it('updates profile and email settings only for the authenticated user id', async () => {
+    const prisma = {
+      user: {
+        update: jest.fn().mockResolvedValue({ id: 'user-b' }),
+      },
+    };
+    const service = new UsersService(prisma as unknown as PrismaService);
+
+    await service.updateById('user-b', {
+      fullname: 'User B',
+      reportReceiverEmail: 'b-manager@example.com',
+      reportEmailBodyTemplate: 'Body for B',
+    });
+
+    expect(prisma.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'user-b' },
+        data: expect.objectContaining({
+          fullname: 'User B',
+          reportReceiverEmail: 'b-manager@example.com',
+          reportEmailBodyTemplate: 'Body for B',
+        }),
+      }),
+    );
+  });
 });

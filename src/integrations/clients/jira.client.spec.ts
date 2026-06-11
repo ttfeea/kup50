@@ -145,7 +145,7 @@ describe('JiraClient', () => {
     ]);
   });
 
-  it('extracts repository URLs from Jira remote links', async () => {
+  it('extracts any valid evidence URLs from Jira remote links', async () => {
     fetchMock
       .mockResolvedValueOnce(
         new Response(JSON.stringify({ accountId: 'account-1' }), {
@@ -208,6 +208,84 @@ describe('JiraClient', () => {
       {
         label: 'Report pull request',
         url: 'https://github.com/example/report/pull/42',
+      },
+      {
+        label: 'Design document',
+        url: 'https://docs.example.com/report',
+      },
+    ]);
+  });
+
+  it('normalizes duplicates and excludes Jira task and epic links', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ accountId: 'account-1' }), {
+          status: 200,
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            issues: [
+              {
+                id: '10001',
+                key: 'KUP-42',
+                fields: {
+                  summary: 'Prepare report',
+                  parent: {
+                    key: 'KUP-1',
+                    fields: { summary: 'Reporting epic' },
+                  },
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify([
+            {
+              object: {
+                title: 'Evidence',
+                url: 'https://internal.example.com/delivery/?utm_source=jira#details',
+              },
+            },
+            {
+              object: {
+                title: 'Duplicate evidence',
+                url: 'https://internal.example.com/delivery',
+              },
+            },
+            {
+              object: {
+                title: 'Task',
+                url: 'https://company.atlassian.net/browse/KUP-42',
+              },
+            },
+            {
+              object: {
+                title: 'Epic',
+                url: 'https://company.atlassian.net/browse/KUP-1',
+              },
+            },
+          ]),
+          { status: 200 },
+        ),
+      );
+
+    const items = await client.fetchRecentItems({
+      token: 'api-token',
+      baseUrl: 'https://company.atlassian.net',
+      accountEmail: 'employee@example.com',
+      limit: 10,
+    });
+
+    expect(items[0].metadata?.jiraRemoteLinks).toEqual([
+      {
+        label: 'Evidence',
+        url: 'https://internal.example.com/delivery',
       },
     ]);
   });

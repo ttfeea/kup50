@@ -21,7 +21,8 @@ import { normalizeWorkItemsToRows } from '../types/report-normalizer';
 import { buildEmailDraftMailto } from '../utils/emailDraft';
 
 function renderRepoLinks(repoLinks: string) {
-  return repoLinks.split('\n').map((link, idx) => {
+  const links = repoLinks.split('\n').filter((link) => link.trim());
+  const rendered = links.map((link, idx) => {
     const isUrl = link.startsWith('http');
     return (
       <div key={idx}>
@@ -30,7 +31,7 @@ function renderRepoLinks(repoLinks: string) {
             href={link}
             target="_blank"
             rel="noreferrer"
-            className="text-emerald-700 dark:text-emerald-300 underline"
+            className="text-primary underline"
           >
             {link}
           </a>
@@ -40,6 +41,17 @@ function renderRepoLinks(repoLinks: string) {
       </div>
     );
   });
+
+  return links.length > 4 ? (
+    <details>
+      <summary className="cursor-pointer text-primary underline">
+        View all links ({links.length})
+      </summary>
+      <div className="mt-2 space-y-1">{rendered}</div>
+    </details>
+  ) : (
+    rendered
+  );
 }
 
 async function copyPlainText(value: string) {
@@ -338,7 +350,7 @@ export function ReportDetailPage() {
         </p>
         <Link
           to="/dashboard"
-          className="text-sm text-emerald-700 dark:text-emerald-300"
+          className="text-sm text-primary"
         >
           Back to dashboard
         </Link>
@@ -403,14 +415,14 @@ export function ReportDetailPage() {
       />
 
       {error ? (
-        <p className="rounded-2xl border border-rose-400/25 bg-[rgba(157,0,255,0.10)] px-3 py-2 text-sm text-rose-100">
+        <p className="rounded-2xl border border-rose-400/25 bg-rose-500/10 px-3 py-2 text-sm text-rose-100">
           {error}
         </p>
       ) : null}
 
       <div className="space-y-6">
         {emailDraft ? (
-          <Panel className="card-hover">
+          <Panel className="card-hover mx-auto w-[95%]">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h2 className="text-base font-semibold text-ink dark:text-white">
@@ -443,7 +455,7 @@ export function ReportDetailPage() {
                         emailDraft.receiverEmail,
                       );
                     }}
-                    className="rounded-md border border-slate-200 px-2 py-1 text-xs font-medium hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900"
+                    className="rounded-md border border-white/15 bg-white/5 px-2 py-1 text-xs font-medium text-[#EAE9FC] hover:border-primary/50 hover:bg-primary/10"
                   >
                     Copy recipient
                   </button>
@@ -458,7 +470,7 @@ export function ReportDetailPage() {
                     onClick={() => {
                       void copyEmailField('Subject', emailDraft.subject);
                     }}
-                    className="rounded-md border border-slate-200 px-2 py-1 text-xs font-medium hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900"
+                    className="rounded-md border border-white/15 bg-white/5 px-2 py-1 text-xs font-medium text-[#EAE9FC] hover:border-primary/50 hover:bg-primary/10"
                   >
                     Copy subject
                   </button>
@@ -466,7 +478,7 @@ export function ReportDetailPage() {
               </div>
               <div>
                 <dt className="text-ink-muted dark:text-slate-400">Body</dt>
-                <dd className="mt-1 whitespace-pre-wrap rounded-md bg-slate-50 p-3 dark:bg-slate-900">
+                <dd className="mt-1 whitespace-pre-wrap rounded-md border border-white/10 bg-[#14112B] p-3 text-[#EAE9FC]">
                   {emailDraft.body}
                 </dd>
                 <button
@@ -474,15 +486,15 @@ export function ReportDetailPage() {
                   onClick={() => {
                     void copyEmailField('Body', emailDraft.body);
                   }}
-                  className="mt-2 rounded-md border border-slate-200 px-2 py-1 text-xs font-medium hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900"
+                  className="mt-2 rounded-md border border-white/15 bg-white/5 px-2 py-1 text-xs font-medium text-[#EAE9FC] hover:border-primary/50 hover:bg-primary/10"
                 >
                   Copy body
                 </button>
               </div>
             </dl>
-            <div className="mt-5 overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+            <div className="mt-5 overflow-x-auto rounded-xl border border-white/10 bg-[#14112B]">
               <div
-                className="min-w-[1500px] bg-white text-slate-900 [&_table]:w-full [&_table]:border-collapse [&_th]:border [&_th]:border-slate-300 [&_th]:bg-slate-100 [&_th]:p-3 [&_th]:text-left [&_th]:align-top [&_td]:border [&_td]:border-slate-300 [&_td]:p-3 [&_td]:align-top [&_a]:text-violet-700 [&_a]:underline"
+                className="min-w-[1425px] bg-[#14112B] text-xs text-[#EAE9FC] [&_table]:w-full [&_table]:border-collapse [&_th]:border [&_th]:border-white/10 [&_th]:bg-[#2B294A] [&_th]:p-2.5 [&_th]:text-left [&_th]:align-top [&_th]:text-[#EAE9FC] [&_td]:border [&_td]:border-white/10 [&_td]:bg-[#14112B] [&_td]:p-2.5 [&_td]:align-top [&_td]:text-[#EAE9FC] [&_a]:text-primary [&_a]:underline"
                 dangerouslySetInnerHTML={{
                   __html: emailDraft.tablePreviewHtml,
                 }}
@@ -492,7 +504,7 @@ export function ReportDetailPage() {
               <p>{XLSX_ATTACHMENT_NOTE}</p>
             </div>
             {copyMessage ? (
-              <p className="mt-2 text-sm text-emerald-700 dark:text-emerald-300">
+              <p className="mt-2 text-sm text-success">
                 {copyMessage}
               </p>
             ) : null}
@@ -614,7 +626,17 @@ export function ReportDetailPage() {
             </div>
             <div>
               <dt className="text-ink-muted dark:text-slate-400">Status</dt>
-              <dd>{report.status}</dd>
+              <dd>
+                <span
+                  className={
+                    report.status === 'SUBMITTED'
+                      ? 'inline-flex rounded-full border border-success/30 bg-success/10 px-2.5 py-1 text-xs font-semibold text-success'
+                      : 'inline-flex rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-[#EAE9FC]'
+                  }
+                >
+                  {report.status === 'SUBMITTED' ? 'Sent' : 'Draft'}
+                </span>
+              </dd>
             </div>
             <div>
               <dt className="text-ink-muted dark:text-slate-400">Items</dt>
@@ -631,7 +653,7 @@ export function ReportDetailPage() {
               No data to display.{' '}
               <Link
                 to="/report/new"
-                className="text-emerald-700 dark:text-emerald-300"
+                className="text-primary"
               >
                 Build a new report
               </Link>
@@ -659,13 +681,13 @@ export function ReportDetailPage() {
                         Month
                       </th>
                       <th className="border border-slate-200 dark:border-slate-700 px-2 py-2 font-semibold text-ink dark:text-white">
-                        Work Titles (GitLab)
+                        Work Titles
                       </th>
                       <th className="border border-slate-200 dark:border-slate-700 px-2 py-2 font-semibold text-ink dark:text-white">
-                        Work Stages (GitLab)
+                        Work Stages
                       </th>
                       <th className="border border-slate-200 dark:border-slate-700 px-2 py-2 font-semibold text-ink dark:text-white">
-                        Repository Links (GitLab)
+                        Repository Links
                       </th>
                     </tr>
                   </thead>
