@@ -31,18 +31,20 @@ Backend variables are documented in `.env.example`.
 - `DATABASE_URL`: PostgreSQL connection string
 - `JWT_SECRET`: long random signing secret
 - `JWT_EXPIRES_IN`: JWT lifetime, currently `60d`
-- `FRONTEND_URL`: allowed frontend origin
-- `FRONTEND_URLS`: optional comma-separated replacement for multiple origins
+- `FRONTEND_URL`: additional allowed frontend origin
+- `FRONTEND_URLS`: optional comma-separated additional origins
 
-Frontend variables are documented in `frontend/.env.example`.
+Frontend variables are documented in `frontend/.env.example`. Production uses
+`frontend/.env.production`, which points to the public Railway API.
 
 - `VITE_API_BASE_URL`: public root URL of the backend, such as
   `https://your-api.up.railway.app`
 
-Vite embeds `VITE_*` variables during the frontend build. On Vercel, configure
-`VITE_API_BASE_URL` for the Production environment before redeploying. A
-deployment built without it stops with a clear configuration error instead of
-silently sending requests to the frontend origin.
+Vite embeds `VITE_*` variables during the frontend build. Vercel may override
+`VITE_API_BASE_URL` for the Production environment. A production build without
+it fails with a clear configuration error instead of deploying a blank page or
+silently sending requests to the frontend origin. Local Vite development
+defaults explicitly to `http://localhost:3000`.
 
 ## Allowed Emails
 

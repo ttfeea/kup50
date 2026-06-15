@@ -30,4 +30,8 @@ function readApiBaseUrl(value: unknown) {
   return url.toString().replace(/\/+$/, '');
 }
 
-export const API_BASE_URL = readApiBaseUrl(import.meta.env.VITE_API_BASE_URL);
+const configuredApiBaseUrl =
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.DEV ? 'http://localhost:3000' : undefined);
+
+export const API_BASE_URL = readApiBaseUrl(configuredApiBaseUrl);
