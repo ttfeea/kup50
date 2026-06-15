@@ -28,7 +28,6 @@ export function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [savingEmail, setSavingEmail] = useState(false);
-  const [managerEmail, setManagerEmail] = useState('');
   const [receiverEmail, setReceiverEmail] = useState('');
   const [emailSubjectTemplate, setEmailSubjectTemplate] = useState(
     DEFAULT_EMAIL_SUBJECT,
@@ -49,7 +48,6 @@ export function SettingsPage() {
     setPosition(user.position);
     setDepartment(user.department);
     setManagerName(user.managerName);
-    setManagerEmail(user.managerEmail);
     setReceiverEmail(user.reportReceiverEmail || user.managerEmail);
     setEmailSubjectTemplate(
       user.reportEmailSubjectTemplate || DEFAULT_EMAIL_SUBJECT,
@@ -70,7 +68,6 @@ export function SettingsPage() {
         position: position.trim(),
         department: department.trim(),
         managerName: managerName.trim(),
-        managerEmail: managerEmail.trim(),
       });
       setMessage('Profile saved successfully.');
     } catch (saveError) {
@@ -120,9 +117,7 @@ export function SettingsPage() {
 
   return (
     <div className="settings-page page-shell page-view space-y-8">
-      <PageHeader
-        title="Settings"
-      />
+      <PageHeader title="Settings" />
 
       {message ? (
         <div className="rounded-[10px] border border-success/30 bg-success/10 px-4 py-3 text-sm text-success">
@@ -218,18 +213,6 @@ export function SettingsPage() {
                   className="input-glass mt-1 w-full"
                 />
               </label>
-              <label className="block">
-                <span className="text-sm text-ink-muted dark:text-slate-400">
-                  Manager email
-                </span>
-                <input
-                  type="email"
-                  value={managerEmail}
-                  onChange={(event) => setManagerEmail(event.target.value)}
-                  placeholder="Enter manager email"
-                  className="input-glass mt-1 w-full"
-                />
-              </label>
               <div className="sm:col-span-2 pt-1">
                 <button
                   type="submit"
@@ -262,7 +245,7 @@ export function SettingsPage() {
                   type="email"
                   value={receiverEmail}
                   onChange={(event) => setReceiverEmail(event.target.value)}
-                  placeholder={managerEmail || 'manager@example.com'}
+                  placeholder="manager@example.com"
                   className="input-glass mt-1 w-full"
                 />
               </label>
@@ -325,7 +308,6 @@ export function SettingsPage() {
           </Panel>
         </div>
       </section>
-
     </div>
   );
 }
