@@ -1,9 +1,4 @@
-const configuredApiUrl: unknown = import.meta.env.VITE_API_URL;
-
-export const API_BASE_URL =
-  typeof configuredApiUrl === 'string' && configuredApiUrl.trim()
-    ? configuredApiUrl.replace(/\/+$/, '')
-    : '/api';
+import { API_BASE_URL } from '../config/api';
 
 type ApiOptions = RequestInit & {
   token?: string | null;

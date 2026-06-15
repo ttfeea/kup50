@@ -36,7 +36,13 @@ Backend variables are documented in `.env.example`.
 
 Frontend variables are documented in `frontend/.env.example`.
 
-- `VITE_API_URL`: deployed API URL, or `/api` behind a shared reverse proxy
+- `VITE_API_BASE_URL`: public root URL of the backend, such as
+  `https://your-api.up.railway.app`
+
+Vite embeds `VITE_*` variables during the frontend build. On Vercel, configure
+`VITE_API_BASE_URL` for the Production environment before redeploying. A
+deployment built without it stops with a clear configuration error instead of
+silently sending requests to the frontend origin.
 
 ## Allowed Emails
 
@@ -68,8 +74,8 @@ npm run build --prefix frontend
 5. Build the backend and frontend.
 6. Start the API with `npm run start:prod`.
 7. Serve `frontend/dist` through a static host or reverse proxy.
-8. Route `/api/*` to the NestJS API and strip the `/api` prefix, or set
-   `VITE_API_URL` to the API's public root URL.
+8. Set `VITE_API_BASE_URL` to the API's public root URL before building the
+   frontend.
 
 All report, integration, user, email-draft, and XLSX endpoints require JWT
 authentication. Allowed-email imports are intentionally available only through
