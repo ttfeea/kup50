@@ -34,7 +34,7 @@ export const workItemTypeLabels: Record<WorkItemType, string> = {
 export function formatWorkItemActivity(item: WorkItem) {
   const value = item.activityUpdatedAt ?? item.activityCreatedAt;
   if (!value) {
-    return '—';
+    return '-';
   }
 
   return value.slice(0, 10);

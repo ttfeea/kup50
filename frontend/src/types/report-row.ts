@@ -12,7 +12,7 @@ export type ReportRow = {
   // Auto-generated column (5)
   month: string;
 
-  // Read-only GitLab columns (6-8)
+  // Read-only integration columns (6-8)
   workTitles: string;
   workStages: string;
   repoLinks: string;
@@ -36,49 +36,46 @@ export function formatTitleWithDepartment(
     return `${titleValue} / ${departmentValue}`;
   }
 
-  return titleValue || departmentValue || '—';
+  return titleValue || departmentValue || '-';
 }
 
 /**
- * Safely extract a single string value, defaulting to '—' if missing or empty.
+ * Safely extract a single string value, defaulting to '-' if missing or empty.
  */
 export function safeString(value: unknown): string {
   if (typeof value === 'string' && value.trim()) {
     return value.trim();
   }
-  return '—';
+  return '-';
 }
 
-/**
- * Polish month names for report export.
- */
-const MONTH_NAMES_PL = [
-  'styczeń',
-  'luty',
-  'marzec',
-  'kwiecień',
-  'maj',
-  'czerwiec',
-  'lipiec',
-  'sierpień',
-  'wrzesień',
-  'październik',
-  'listopad',
-  'grudzień',
+const MONTH_NAMES_EN = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ];
 
 /**
- * Format a month name from a date string using Polish month names only.
+ * Format a month name from a date string.
  */
 export function formatMonthFromDate(dateStr: string | undefined): string {
   if (!dateStr) {
-    return '—';
+    return '-';
   }
 
   const date = new Date(dateStr);
   if (isNaN(date.getTime())) {
-    return '—';
+    return '-';
   }
 
-  return MONTH_NAMES_PL[date.getMonth()] ?? '—';
+  return MONTH_NAMES_EN[date.getMonth()] ?? '-';
 }

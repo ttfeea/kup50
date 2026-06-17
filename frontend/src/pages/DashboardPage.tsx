@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { formatReportPeriod, listReports } from '../services/reports';
 import { useAuth } from '../contexts/AuthContext';
 import { useIntegrations } from '../contexts/IntegrationsContext';
+import { useSnackbar } from '../contexts/SnackbarContext';
 import type { ReportDto } from '../models/dtos/report.dto';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Panel } from '../components/ui/Panel';
@@ -14,7 +15,12 @@ import {
 
 export function DashboardPage() {
   const { accessToken } = useAuth();
-  const { connectedCount, connectedProviders } = useIntegrations();
+  const {
+    connectedCount,
+    connectedProviders,
+    loading: integrationsLoading,
+  } = useIntegrations();
+  const { showSnackbar } = useSnackbar();
   const [reports, setReports] = useState<ReportDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -60,7 +66,15 @@ export function DashboardPage() {
     };
   }, [accessToken]);
 
+  useEffect(() => {
+    if (error) {
+      showSnackbar(error, 'error');
+    }
+  }, [error, showSnackbar]);
+
   const latestReport = reports[0];
+  const hasConnectedJira = connectedProviders.includes('JIRA');
+  const shouldShowOnboarding = !integrationsLoading && !hasConnectedJira;
 
   const draftCount = useMemo(
     () => reports.filter((report) => report.status === 'DRAFT').length,
@@ -82,10 +96,10 @@ export function DashboardPage() {
     }
 
     const sortedItems = items.sort(
-        (a, b) =>
-          new Date(b.activityUpdatedAt ?? 0).getTime() -
-          new Date(a.activityUpdatedAt ?? 0).getTime(),
-      );
+      (a, b) =>
+        new Date(b.activityUpdatedAt ?? 0).getTime() -
+        new Date(a.activityUpdatedAt ?? 0).getTime(),
+    );
     const uniqueItems = new Map<string, (typeof sortedItems)[number]>();
 
     for (const item of sortedItems) {
@@ -113,10 +127,27 @@ export function DashboardPage() {
         }
       />
 
-      {error ? (
-        <p className="rounded-2xl border border-rose-400/25 bg-rose-500/10 px-3 py-2 text-sm text-rose-100">
-          {error}
-        </p>
+      {shouldShowOnboarding ? (
+        <Panel className="border-amber-400/30 bg-amber-500/10">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-white">
+                Connect Jira to start
+              </h2>
+              <p className="mt-1 text-sm text-[#eae9fc]">
+                Jira is required to load work items for reports. GitLab and
+                GitHub are optional and only help fill repository evidence
+                links.
+              </p>
+            </div>
+            <Link
+              to="/settings"
+              className="btn-primary w-full justify-center sm:w-auto"
+            >
+              Integration settings
+            </Link>
+          </div>
+        </Panel>
       ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -125,7 +156,7 @@ export function DashboardPage() {
             Open drafts
           </p>
           <p className="mt-3 text-3xl font-semibold text-ink dark:text-white">
-            {loading ? '…' : draftCount}
+            {loading ? '...' : draftCount}
           </p>
         </Panel>
         <Panel>
@@ -152,6 +183,12 @@ export function DashboardPage() {
                   .join(', ')}`
               : 'No sources connected'}
           </p>
+          <Link
+            to="/settings"
+            className="mt-3 inline-flex text-sm font-semibold text-primary underline underline-offset-4"
+          >
+            Integration settings
+          </Link>
         </Panel>
       </div>
 
@@ -191,15 +228,12 @@ export function DashboardPage() {
           </h2>
           {loading ? (
             <p className="mt-4 text-sm text-ink-muted dark:text-slate-400">
-              Loading reports…
+              Loading reports...
             </p>
           ) : reports.length === 0 ? (
             <p className="mt-4 text-sm text-ink-muted dark:text-slate-400">
               No reports yet.{' '}
-              <Link
-                to="/report/new"
-                className="text-primary"
-              >
+              <Link to="/report/new" className="text-primary">
                 Create a report
               </Link>{' '}
               to get started.
@@ -236,7 +270,7 @@ export function DashboardPage() {
           </h2>
           {loading ? (
             <p className="mt-4 text-sm text-ink-muted dark:text-slate-400">
-              Loading items…
+              Loading items...
             </p>
           ) : latestWorkItems.length === 0 ? (
             <p className="mt-4 text-sm text-ink-muted dark:text-slate-400">

@@ -8,6 +8,7 @@ import {
   previewIntegrationItems,
 } from '../services/reports';
 import { useAuth } from '../contexts/AuthContext';
+import { useSnackbar } from '../contexts/SnackbarContext';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Panel } from '../components/ui/Panel';
 import { WorkItem, WorkItemType } from '../types/work-item';
@@ -148,9 +149,7 @@ function buildReportRows(
             typeof link?.label === 'string' && typeof link?.url === 'string',
         )
       : [],
-    repositorySummaryLinks: Array.isArray(
-      item.metadata?.repositorySummaryLinks,
-    )
+    repositorySummaryLinks: Array.isArray(item.metadata?.repositorySummaryLinks)
       ? (item.metadata.repositorySummaryLinks as RepositoryLink[]).filter(
           (link) =>
             typeof link?.label === 'string' && typeof link?.url === 'string',
@@ -199,17 +198,18 @@ function generateManualRow(
     title:
       titleValue && departmentValue
         ? `${titleValue} / ${departmentValue}`
-        : titleValue || departmentValue || '—',
+        : titleValue || departmentValue || '-',
     manager: userInfo.manager || '',
     month: monthLabel,
     workTitles: '',
     workStages: '',
-    repoLinks: '—',
+    repoLinks: '-',
   };
 }
 
 export function NewReportPage() {
   const auth = useAuth();
+  const { showSnackbar } = useSnackbar();
   const user = auth.user;
   const accessToken = auth.accessToken;
   const navigate = useNavigate();
@@ -280,6 +280,18 @@ export function NewReportPage() {
     };
   }, [dirty]);
 
+  useEffect(() => {
+    if (message) {
+      showSnackbar(message, 'success');
+    }
+  }, [message, showSnackbar]);
+
+  useEffect(() => {
+    if (error) {
+      showSnackbar(error, 'error');
+    }
+  }, [error, showSnackbar]);
+
   function markDirty() {
     if (!dirty) {
       setDirty(true);
@@ -328,11 +340,15 @@ export function NewReportPage() {
         ...buildReportRows(items, userInfo, reportPeriodStart),
       ]);
       markDirty();
-      setMessage(
-        items.length
-          ? `Loaded ${items.length} integration work items.`
-          : 'No integration items returned. Check connections in Settings.',
-      );
+      if (items.length) {
+        setMessage(`Loaded ${items.length} integration work items.`);
+      } else {
+        setMessage(null);
+        showSnackbar(
+          'No integration items returned. Check connections in Settings.',
+          'warning',
+        );
+      }
     } catch (fetchError) {
       setError(
         fetchError instanceof Error
@@ -513,7 +529,6 @@ export function NewReportPage() {
   const canSaveDraft = rows.length > 0 && !saving;
   return (
     <div className="new-report-page page-shell page-view space-y-6">
-
       <PageHeader
         className="mb-0"
         title="New report"
@@ -527,17 +542,6 @@ export function NewReportPage() {
           </button>
         }
       />
-
-      {message ? (
-        <div className="rounded-2xl border border-white/10 bg-[rgba(255,255,255,0.08)] px-4 py-3 text-sm text-white shadow-violet-500/10">
-          {message}
-        </div>
-      ) : null}
-      {error ? (
-        <div className="rounded-2xl border border-rose-400/25 bg-rose-500/10 px-4 py-3 text-sm text-rose-100 shadow-rose-500/10">
-          {error}
-        </div>
-      ) : null}
 
       <Panel className="card-hover">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -586,9 +590,7 @@ export function NewReportPage() {
                 type="date"
                 value={customPeriodStart}
                 max={customPeriodEnd}
-                onChange={(event) =>
-                  setCustomPeriodStart(event.target.value)
-                }
+                onChange={(event) => setCustomPeriodStart(event.target.value)}
                 className="input-glass"
               />
             </label>
@@ -608,7 +610,7 @@ export function NewReportPage() {
               disabled={loadingItems}
               className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
             >
-              {loadingItems ? 'Loading…' : 'Load items'}
+              {loadingItems ? 'Loading...' : 'Load items'}
             </button>
           </div>
         </div>
@@ -654,7 +656,11 @@ export function NewReportPage() {
                         value={row.workTitles}
                         placeholder="Creative work title"
                         onChange={(event) =>
-                          updateRowField(rowIndex, 'workTitles', event.target.value)
+                          updateRowField(
+                            rowIndex,
+                            'workTitles',
+                            event.target.value,
+                          )
                         }
                         className="input-glass min-h-11 w-full"
                       />
@@ -675,7 +681,11 @@ export function NewReportPage() {
                         value={row.workStages}
                         placeholder="Creative work stage"
                         onChange={(event) =>
-                          updateRowField(rowIndex, 'workStages', event.target.value)
+                          updateRowField(
+                            rowIndex,
+                            'workStages',
+                            event.target.value,
+                          )
                         }
                         className="input-glass min-h-11 w-full"
                       />
@@ -702,7 +712,10 @@ export function NewReportPage() {
                             event.target.value,
                           )
                         }
-                        rows={Math.max(2, Math.min(4, row.repositoryLinks.length))}
+                        rows={Math.max(
+                          2,
+                          Math.min(4, row.repositoryLinks.length),
+                        )}
                         className="input-glass min-h-[72px] w-full resize-y break-all"
                       />
                     </td>
@@ -735,19 +748,23 @@ export function NewReportPage() {
           <div className="flex flex-col gap-3 sm:flex-row">
             <button
               type="button"
-              onClick={() => { void handleSaveReport(false); }}
+              onClick={() => {
+                void handleSaveReport(false);
+              }}
               disabled={!canSaveDraft}
               className="btn-primary w-full sm:w-auto disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {saving ? 'Saving…' : 'Save draft'}
+              {saving ? 'Saving...' : 'Save draft'}
             </button>
             <button
               type="button"
-              onClick={() => { void handleSaveReport(true); }}
+              onClick={() => {
+                void handleSaveReport(true);
+              }}
               disabled={!canSaveDraft}
               className="btn-outline w-full sm:w-auto disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {saving ? 'Saving…' : 'Save and confirm'}
+              {saving ? 'Saving...' : 'Save and confirm'}
             </button>
           </div>
         </div>
@@ -775,15 +792,16 @@ export function NewReportPage() {
               <table className="min-w-[1600px] w-full border-collapse text-left text-xs">
                 <thead className="bg-white/10 text-white/80">
                   <tr>
+                    {' '}
                     {[
                       'Employee ID',
-                      'Imię i nazwisko Pracownika / Name Surname',
-                      'Stanowisko służbowe i departament Pracownika / Title',
-                      'Imię i nazwisko Menadżera / Approving manager',
-                      'Okres ewidencji / Month',
-                      'Tytuły / nazwy Wyników Pracy Twórczej / Creative work titles',
-                      'Tytuły / nazwy oraz etap (o ile występuje) Projektu B+R / Creative work stages',
-                      'Wskazanie miejsca przechowywania lub miejsca dostarczenia Pracodawcy Wyników Pracy Twórczej (...) / Repository links',
+                      'Name Surname',
+                      'Title and department',
+                      'Approving manager',
+                      'Month',
+                      'Creative work titles',
+                      'Creative work stages',
+                      'Repository links',
                     ].map((header) => (
                       <th
                         key={header}
@@ -797,13 +815,27 @@ export function NewReportPage() {
                 <tbody>
                   {fullPreviewRows.map((row, index) => (
                     <tr key={rows[index]?.rowId ?? index}>
-                      <td className="border border-white/10 px-3 py-3 align-top text-white/80">{row.employeeId}</td>
-                      <td className="border border-white/10 px-3 py-3 align-top text-white/80">{row.name}</td>
-                      <td className="border border-white/10 px-3 py-3 align-top text-white/80">{row.title}</td>
-                      <td className="border border-white/10 px-3 py-3 align-top text-white/80">{row.manager}</td>
-                      <td className="border border-white/10 px-3 py-3 align-top text-white/80">{row.month}</td>
-                      <td className="border border-white/10 px-3 py-3 align-top whitespace-pre-wrap text-white/80">{row.workTitles}</td>
-                      <td className="border border-white/10 px-3 py-3 align-top whitespace-pre-wrap text-white/80">{row.workStages}</td>
+                      <td className="border border-white/10 px-3 py-3 align-top text-white/80">
+                        {row.employeeId}
+                      </td>
+                      <td className="border border-white/10 px-3 py-3 align-top text-white/80">
+                        {row.name}
+                      </td>
+                      <td className="border border-white/10 px-3 py-3 align-top text-white/80">
+                        {row.title}
+                      </td>
+                      <td className="border border-white/10 px-3 py-3 align-top text-white/80">
+                        {row.manager}
+                      </td>
+                      <td className="border border-white/10 px-3 py-3 align-top text-white/80">
+                        {row.month}
+                      </td>
+                      <td className="border border-white/10 px-3 py-3 align-top whitespace-pre-wrap text-white/80">
+                        {row.workTitles}
+                      </td>
+                      <td className="border border-white/10 px-3 py-3 align-top whitespace-pre-wrap text-white/80">
+                        {row.workStages}
+                      </td>
                       <td className="border border-white/10 px-3 py-3 align-top whitespace-pre-wrap break-words text-white/80">
                         {renderRepositoryLinks(row.repoLinks)}
                       </td>
@@ -824,7 +856,9 @@ export function NewReportPage() {
               Unsaved work detected
             </h3>
             <p className="mt-3 text-sm text-white/60">
-              {'You have unsaved changes in the report builder. Choose an action before leaving.'}
+              {
+                'You have unsaved changes in the report builder. Choose an action before leaving.'
+              }
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
               <button
@@ -843,7 +877,9 @@ export function NewReportPage() {
               </button>
               <button
                 type="button"
-                onClick={() => { void saveDraftAndLeave(); }}
+                onClick={() => {
+                  void saveDraftAndLeave();
+                }}
                 className="btn-primary w-full sm:w-auto"
               >
                 Save draft and leave

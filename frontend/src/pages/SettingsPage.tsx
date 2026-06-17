@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { IntegrationSettingsPanel } from '../components/integrations/IntegrationSettingsPanel';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Panel } from '../components/ui/Panel';
@@ -7,6 +7,7 @@ import {
   DEFAULT_EMAIL_SUBJECT,
 } from '../constants/emailTemplates';
 import { useAuth } from '../contexts/AuthContext';
+import { useSnackbar } from '../contexts/SnackbarContext';
 
 const TEMPLATE_VARIABLES = [
   { label: 'Month', value: '{{month}}' },
@@ -19,15 +20,15 @@ const TEMPLATE_VARIABLES = [
 
 export function SettingsPage() {
   const { user, updateProfile } = useAuth();
+  const { showSnackbar } = useSnackbar();
   const [employeeId, setEmployeeId] = useState('');
   const [fullname, setFullname] = useState('');
   const [position, setPosition] = useState('');
   const [department, setDepartment] = useState('');
   const [managerName, setManagerName] = useState('');
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [savingEmail, setSavingEmail] = useState(false);
+  const [integrationDirty, setIntegrationDirty] = useState(false);
   const [receiverEmail, setReceiverEmail] = useState('');
   const [emailSubjectTemplate, setEmailSubjectTemplate] = useState(
     DEFAULT_EMAIL_SUBJECT,
@@ -55,11 +56,73 @@ export function SettingsPage() {
     setEmailBodyTemplate(user.reportEmailBodyTemplate || DEFAULT_EMAIL_BODY);
   }, [user]);
 
+  const profileDirty = useMemo(
+    () =>
+      Boolean(user) &&
+      (employeeId !== user?.employeeId ||
+        fullname !== user?.name ||
+        position !== user?.position ||
+        department !== user?.department ||
+        managerName !== user?.managerName),
+    [department, employeeId, fullname, managerName, position, user],
+  );
+
+  const emailDirty = useMemo(
+    () =>
+      Boolean(user) &&
+      (receiverEmail !== (user?.reportReceiverEmail || user?.managerEmail) ||
+        emailSubjectTemplate !==
+          (user?.reportEmailSubjectTemplate || DEFAULT_EMAIL_SUBJECT) ||
+        emailBodyTemplate !==
+          (user?.reportEmailBodyTemplate || DEFAULT_EMAIL_BODY)),
+    [emailBodyTemplate, emailSubjectTemplate, receiverEmail, user],
+  );
+
+  const dirty = profileDirty || emailDirty || integrationDirty;
+
+  useEffect(() => {
+    if (!dirty) {
+      return;
+    }
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+      return '';
+    };
+    const handleDocumentClick = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
+
+      const link = target.closest('a[href]');
+      if (!(link instanceof HTMLAnchorElement)) {
+        return;
+      }
+
+      const href = link.href;
+      if (!href || link.target || href === window.location.href) {
+        return;
+      }
+
+      event.preventDefault();
+      if (window.confirm('Leave Settings and discard unsaved changes?')) {
+        window.location.href = href;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('click', handleDocumentClick, true);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('click', handleDocumentClick, true);
+    };
+  }, [dirty]);
+
   async function handleSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
-    setError(null);
-    setMessage(null);
 
     try {
       await updateProfile({
@@ -69,12 +132,13 @@ export function SettingsPage() {
         department: department.trim(),
         managerName: managerName.trim(),
       });
-      setMessage('Profile saved successfully.');
+      showSnackbar('Profile saved successfully.', 'success');
     } catch (saveError) {
-      setError(
+      showSnackbar(
         saveError instanceof Error
           ? saveError.message
           : 'Could not save profile.',
+        'error',
       );
     } finally {
       setSaving(false);
@@ -84,8 +148,6 @@ export function SettingsPage() {
   async function handleSaveEmail(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSavingEmail(true);
-    setError(null);
-    setMessage(null);
 
     try {
       await updateProfile({
@@ -94,12 +156,13 @@ export function SettingsPage() {
           emailSubjectTemplate.trim() || DEFAULT_EMAIL_SUBJECT,
         reportEmailBodyTemplate: emailBodyTemplate.trim() || DEFAULT_EMAIL_BODY,
       });
-      setMessage('Email settings saved successfully.');
+      showSnackbar('Email settings saved successfully.', 'success');
     } catch (saveError) {
-      setError(
+      showSnackbar(
         saveError instanceof Error
           ? saveError.message
           : 'Could not save email settings.',
+        'error',
       );
     } finally {
       setSavingEmail(false);
@@ -119,14 +182,9 @@ export function SettingsPage() {
     <div className="settings-page page-shell page-view space-y-8">
       <PageHeader title="Settings" />
 
-      {message ? (
-        <div className="rounded-[10px] border border-success/30 bg-success/10 px-4 py-3 text-sm text-success">
-          {message}
-        </div>
-      ) : null}
-      {error ? (
-        <div className="rounded-[10px] border border-[rgba(255,45,107,0.30)] bg-[rgba(255,45,107,0.10)] px-4 py-3 text-sm text-[#ff6b9d]">
-          {error}
+      {dirty ? (
+        <div className="rounded-[10px] border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+          You have unsaved settings changes.
         </div>
       ) : null}
 
@@ -213,7 +271,7 @@ export function SettingsPage() {
                   className="input-glass mt-1 w-full"
                 />
               </label>
-              <div className="sm:col-span-2 pt-1">
+              <div className="pt-1 sm:col-span-2">
                 <button
                   type="submit"
                   disabled={saving}
@@ -225,7 +283,7 @@ export function SettingsPage() {
             </form>
           </Panel>
 
-          <IntegrationSettingsPanel />
+          <IntegrationSettingsPanel onDirtyChange={setIntegrationDirty} />
 
           <Panel className="card-hover">
             <h3 className="text-base font-semibold text-ink dark:text-white">
@@ -276,11 +334,11 @@ export function SettingsPage() {
               </label>
               <details className="rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950">
                 <summary className="cursor-pointer text-sm font-medium text-slate-700 dark:text-slate-200">
-                  Dostępne zmienne: miesiąc, imię i nazwisko, ID pracownika,
-                  manager, okres
+                  Available variables: month, full name, employee ID, manager,
+                  period
                 </summary>
                 <p className="mt-2 text-xs text-ink-muted dark:text-slate-400">
-                  Kliknij pole tematu lub treści, a następnie wybierz zmienną.
+                  Select the subject or body field, then choose a variable.
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {TEMPLATE_VARIABLES.map((variable) => (

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Copy } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   confirmReport,
@@ -15,6 +16,7 @@ import {
   XLSX_ATTACHMENT_NOTE,
 } from '../constants/emailTemplates';
 import { useAuth } from '../contexts/AuthContext';
+import { useSnackbar } from '../contexts/SnackbarContext';
 import type { EmailDraftDto, ReportDto } from '../models/dtos/report.dto';
 import { ReportRow } from '../types/report-row';
 import { normalizeWorkItemsToRows } from '../types/report-normalizer';
@@ -75,10 +77,31 @@ async function copyPlainText(value: string) {
   }
 }
 
+function CopyButton({
+  label,
+  onClick,
+}: {
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-white/15 bg-white/5 text-[#EAE9FC] hover:border-primary/50 hover:bg-primary/10"
+      aria-label={label}
+      title={label}
+    >
+      <Copy className="h-4 w-4" aria-hidden="true" />
+    </button>
+  );
+}
+
 export function ReportDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const auth = useAuth();
+  const { showSnackbar } = useSnackbar();
   const accessToken = auth.accessToken;
   const user = auth.user;
   const [report, setReport] = useState<ReportDto | null>(null);
@@ -89,10 +112,6 @@ export function ReportDetailPage() {
   const [generatingEmail, setGeneratingEmail] = useState(false);
   const [downloadingXlsx, setDownloadingXlsx] = useState(false);
   const [emailDraft, setEmailDraft] = useState<EmailDraftDto | null>(null);
-  const [copyMessage, setCopyMessage] = useState<string | null>(null);
-  const [emailActionMessage, setEmailActionMessage] = useState<string | null>(
-    null,
-  );
   const [showEmailFallback, setShowEmailFallback] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -161,6 +180,12 @@ export function ReportDetailPage() {
     };
   }, [accessToken, id, user]);
 
+  useEffect(() => {
+    if (error) {
+      showSnackbar(error, 'error');
+    }
+  }, [error, showSnackbar]);
+
   async function handleConfirm() {
     if (!accessToken || !report) {
       return;
@@ -172,12 +197,14 @@ export function ReportDetailPage() {
     try {
       const confirmed = await confirmReport(accessToken, report.id);
       setReport(confirmed);
+      showSnackbar('Report confirmed.', 'success');
     } catch (confirmError) {
-      setError(
+      const message =
         confirmError instanceof Error
           ? confirmError.message
-          : 'Could not confirm report.',
-      );
+          : 'Could not confirm report.';
+      setError(message);
+      showSnackbar(message, 'error');
     } finally {
       setConfirming(false);
     }
@@ -193,13 +220,15 @@ export function ReportDetailPage() {
 
     try {
       await deleteDraftReport(accessToken, report.id);
+      showSnackbar('Report deleted.', 'success');
       navigate('/dashboard');
     } catch (deleteError) {
-      setError(
+      const message =
         deleteError instanceof Error
           ? deleteError.message
-          : 'Could not delete draft report.',
-      );
+          : 'Could not delete draft report.';
+      setError(message);
+      showSnackbar(message, 'error');
     } finally {
       setDeleting(false);
     }
@@ -212,18 +241,18 @@ export function ReportDetailPage() {
 
     setGeneratingEmail(true);
     setError(null);
-    setCopyMessage(null);
-    setEmailActionMessage(null);
     setShowEmailFallback(false);
 
     try {
       setEmailDraft(await getEmailDraft(accessToken, report.id));
+      showSnackbar('Email preview generated.', 'success');
     } catch (draftError) {
-      setError(
+      const message =
         draftError instanceof Error
           ? draftError.message
-          : 'Could not generate email draft.',
-      );
+          : 'Could not generate email draft.';
+      setError(message);
+      showSnackbar(message, 'error');
     } finally {
       setGeneratingEmail(false);
     }
@@ -257,13 +286,13 @@ export function ReportDetailPage() {
       } else {
         await copyPlainText(plainText);
       }
-      setCopyMessage('Table copied.');
+      showSnackbar('Table copied.', 'success');
     } catch {
       try {
         await copyPlainText(plainText);
-        setCopyMessage('Table copied as plain text.');
+        showSnackbar('Table copied as plain text.', 'success');
       } catch {
-        setCopyMessage('Could not copy the table.');
+        showSnackbar('Could not copy the table.', 'error');
       }
     }
   }
@@ -285,19 +314,22 @@ export function ReportDetailPage() {
     setShowEmailFallback(true);
 
     if (!receiverEmail) {
-      setEmailActionMessage(
+      showSnackbar(
         'Receiver email is missing. Add it in Settings before opening the draft.',
+        'warning',
       );
       return;
     }
 
     if (isTooLong) {
-      setEmailActionMessage(
+      showSnackbar(
         'The full email body is too long for some mail apps. A short draft will open; copy the full body or table manually.',
+        'warning',
       );
     } else {
-      setEmailActionMessage(
+      showSnackbar(
         'Opening your default mail app. If nothing happens, use the copy buttons below.',
+        'warning',
       );
     }
 
@@ -307,9 +339,9 @@ export function ReportDetailPage() {
   async function copyEmailField(label: string, value: string) {
     try {
       await copyPlainText(value);
-      setCopyMessage(`${label} copied.`);
+      showSnackbar(`${label} copied.`, 'success');
     } catch {
-      setCopyMessage(`Could not copy ${label.toLowerCase()}.`);
+      showSnackbar(`Could not copy ${label.toLowerCase()}.`, 'error');
     }
   }
 
@@ -324,11 +356,12 @@ export function ReportDetailPage() {
     try {
       await downloadReportXlsx(accessToken, report.id, emailDraft.xlsxFileName);
     } catch (downloadError) {
-      setError(
+      const message =
         downloadError instanceof Error
           ? downloadError.message
-          : 'Could not download XLSX report.',
-      );
+          : 'Could not download XLSX report.';
+      setError(message);
+      showSnackbar(message, 'error');
     } finally {
       setDownloadingXlsx(false);
     }
@@ -337,7 +370,7 @@ export function ReportDetailPage() {
   if (loading) {
     return (
       <p className="text-sm text-ink-muted dark:text-slate-400">
-        Loading report…
+        Loading report...
       </p>
     );
   }
@@ -348,10 +381,7 @@ export function ReportDetailPage() {
         <p className="text-sm text-red-700 dark:text-red-300">
           {error ?? 'Report not found.'}
         </p>
-        <Link
-          to="/dashboard"
-          className="text-sm text-primary"
-        >
+        <Link to="/dashboard" className="text-sm text-primary">
           Back to dashboard
         </Link>
       </div>
@@ -359,7 +389,7 @@ export function ReportDetailPage() {
   }
 
   const deleteButtonLabel = deleting
-    ? 'Deleting…'
+    ? 'Deleting...'
     : report.status === 'DRAFT'
       ? 'Delete draft'
       : 'Delete report';
@@ -397,7 +427,7 @@ export function ReportDetailPage() {
                 disabled={confirming || (report.workItems?.length ?? 0) === 0}
                 className="btn-outline w-full disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
               >
-                {confirming ? 'Confirming…' : 'Confirm report'}
+                {confirming ? 'Confirming...' : 'Confirm report'}
               </button>
             ) : null}
             <button
@@ -433,8 +463,6 @@ export function ReportDetailPage() {
                 type="button"
                 onClick={() => {
                   setEmailDraft(null);
-                  setEmailActionMessage(null);
-                  setCopyMessage(null);
                   setShowEmailFallback(false);
                 }}
                 className="btn-outline"
@@ -446,34 +474,28 @@ export function ReportDetailPage() {
               <div>
                 <dt className="text-ink-muted dark:text-slate-400">Receiver</dt>
                 <dd className="mt-1 flex flex-wrap items-center gap-2">
-                  <span>{emailDraft.receiverEmail || '—'}</span>
-                  <button
-                    type="button"
+                  <span>{emailDraft.receiverEmail || '-'}</span>
+                  <CopyButton
+                    label="Copy recipient"
                     onClick={() => {
                       void copyEmailField(
                         'Recipient',
                         emailDraft.receiverEmail,
                       );
                     }}
-                    className="rounded-md border border-white/15 bg-white/5 px-2 py-1 text-xs font-medium text-[#EAE9FC] hover:border-primary/50 hover:bg-primary/10"
-                  >
-                    Copy recipient
-                  </button>
+                  />
                 </dd>
               </div>
               <div>
                 <dt className="text-ink-muted dark:text-slate-400">Subject</dt>
                 <dd className="mt-1 flex flex-wrap items-start gap-2">
                   <span className="min-w-0 flex-1">{emailDraft.subject}</span>
-                  <button
-                    type="button"
+                  <CopyButton
+                    label="Copy subject"
                     onClick={() => {
                       void copyEmailField('Subject', emailDraft.subject);
                     }}
-                    className="rounded-md border border-white/15 bg-white/5 px-2 py-1 text-xs font-medium text-[#EAE9FC] hover:border-primary/50 hover:bg-primary/10"
-                  >
-                    Copy subject
-                  </button>
+                  />
                 </dd>
               </div>
               <div>
@@ -481,15 +503,14 @@ export function ReportDetailPage() {
                 <dd className="mt-1 whitespace-pre-wrap rounded-md border border-white/10 bg-[#14112B] p-3 text-[#EAE9FC]">
                   {emailDraft.body}
                 </dd>
-                <button
-                  type="button"
-                  onClick={() => {
-                    void copyEmailField('Body', emailDraft.body);
-                  }}
-                  className="mt-2 rounded-md border border-white/15 bg-white/5 px-2 py-1 text-xs font-medium text-[#EAE9FC] hover:border-primary/50 hover:bg-primary/10"
-                >
-                  Copy body
-                </button>
+                <div className="mt-2 flex justify-end">
+                  <CopyButton
+                    label="Copy body"
+                    onClick={() => {
+                      void copyEmailField('Body', emailDraft.body);
+                    }}
+                  />
+                </div>
               </div>
             </dl>
             <div className="mt-5 overflow-x-auto rounded-xl border border-white/10 bg-[#14112B]">
@@ -503,57 +524,38 @@ export function ReportDetailPage() {
             <div className="mt-4 text-sm text-ink-muted dark:text-slate-400">
               <p>{XLSX_ATTACHMENT_NOTE}</p>
             </div>
-            {copyMessage ? (
-              <p className="mt-2 text-sm text-success">
-                {copyMessage}
-              </p>
-            ) : null}
-            {emailActionMessage ? (
-              <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
-                {emailActionMessage}
-              </p>
-            ) : null}
             {showEmailFallback ? (
               <div className="mt-3 rounded-md border border-slate-200 p-3 dark:border-slate-800">
                 <p className="text-sm text-ink-muted dark:text-slate-400">
                   {EMAIL_DRAFT_FALLBACK_NOTE}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
+                  <CopyButton
+                    label="Copy receiver"
                     onClick={() => {
                       void copyEmailField(
                         'Recipient',
                         mailtoDraft?.receiver ?? '',
                       );
                     }}
-                    className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900"
-                  >
-                    Copy receiver
-                  </button>
-                  <button
-                    type="button"
+                  />
+                  <CopyButton
+                    label="Copy subject"
                     onClick={() => {
                       void copyEmailField(
                         'Subject',
                         mailtoDraft?.subject ?? '',
                       );
                     }}
-                    className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900"
-                  >
-                    Copy subject
-                  </button>
-                  <button
-                    type="button"
+                  />
+                  <CopyButton
+                    label="Copy body"
                     onClick={() => {
                       void copyEmailField('Body', mailtoDraft?.body ?? '');
                     }}
-                    className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900"
-                  >
-                    Copy body
-                  </button>
-                  <button
-                    type="button"
+                  />
+                  <CopyButton
+                    label="Copy all email text"
                     onClick={() => {
                       const { receiver, subject, body } = mailtoDraft ?? {
                         receiver: '',
@@ -565,10 +567,7 @@ export function ReportDetailPage() {
                         `To: ${receiver}\nSubject: ${subject}\n\n${body}`,
                       );
                     }}
-                    className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900"
-                  >
-                    Copy all email text
-                  </button>
+                  />
                 </div>
               </div>
             ) : null}
@@ -580,15 +579,12 @@ export function ReportDetailPage() {
               >
                 Open Email Draft
               </button>
-              <button
-                type="button"
+              <CopyButton
+                label="Copy table"
                 onClick={() => {
                   void handleCopyTable();
                 }}
-                className="btn-outline w-full sm:w-auto"
-              >
-                Copy Table
-              </button>
+              />
               <button
                 type="button"
                 onClick={() => {
@@ -618,7 +614,7 @@ export function ReportDetailPage() {
           <dl className="mt-4 space-y-3 text-sm">
             <div>
               <dt className="text-ink-muted dark:text-slate-400">Employee</dt>
-              <dd>{user?.name ?? '—'}</dd>
+              <dd>{user?.name ?? '-'}</dd>
             </div>
             <div>
               <dt className="text-ink-muted dark:text-slate-400">Period</dt>
@@ -651,10 +647,7 @@ export function ReportDetailPage() {
           {rows.length === 0 ? (
             <p className="mt-4 text-sm text-ink-muted dark:text-slate-400">
               No data to display.{' '}
-              <Link
-                to="/report/new"
-                className="text-primary"
-              >
+              <Link to="/report/new" className="text-primary">
                 Build a new report
               </Link>
               .
