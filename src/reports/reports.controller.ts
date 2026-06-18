@@ -34,6 +34,11 @@ export class ReportsController {
     return this.reportsService.getReportsWithWorkItems(user.id);
   }
 
+  @Get('deleted/recent')
+  findDeleted(@CurrentUser() user: SafeUser) {
+    return this.reportsService.getRecentlyDeletedReports(user.id);
+  }
+
   @Get(':id')
   findOne(@CurrentUser() user: SafeUser, @Param('id') id: string) {
     return this.reportsService.getReportWithWorkItems(user.id, id);
@@ -65,6 +70,11 @@ export class ReportsController {
   @Delete(':id')
   deleteDraft(@CurrentUser() user: SafeUser, @Param('id') id: string) {
     return this.reportsService.deleteDraft(user.id, id);
+  }
+
+  @Post(':id/restore')
+  restore(@CurrentUser() user: SafeUser, @Param('id') id: string) {
+    return this.reportsService.restoreReport(user.id, id);
   }
 
   @Get(':id/fetch-items')

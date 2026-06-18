@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -217,6 +217,7 @@ export function NewReportPage() {
   const [loadingItems, setLoadingItems] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadItemsError, setLoadItemsError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const [showFullPreview, setShowFullPreview] = useState(false);
@@ -228,6 +229,7 @@ export function NewReportPage() {
   const [customPeriodEnd, setCustomPeriodEnd] = useState(() =>
     toDateInputValue(new Date()),
   );
+  const hasAutoLoadedItems = useRef(false);
 
   const reportPeriodStart = useMemo(
     () => toPeriodStart(customPeriodStart),
@@ -306,6 +308,7 @@ export function NewReportPage() {
     const currentUser = user;
     setLoadingItems(true);
     setError(null);
+    setLoadItemsError(null);
     setMessage(null);
 
     try {
@@ -350,15 +353,25 @@ export function NewReportPage() {
         );
       }
     } catch (fetchError) {
-      setError(
+      const message =
         fetchError instanceof Error
           ? fetchError.message
-          : 'Could not fetch work items.',
-      );
+          : 'Could not load work items';
+      setLoadItemsError('Could not load work items');
+      setError(message);
     } finally {
       setLoadingItems(false);
     }
   }
+
+  useEffect(() => {
+    if (!accessToken || hasAutoLoadedItems.current) {
+      return;
+    }
+
+    hasAutoLoadedItems.current = true;
+    void handleFetchItems();
+  }, [accessToken]);
 
   function handleAddManualRow() {
     const currentUser = user;
@@ -604,15 +617,26 @@ export function NewReportPage() {
                 className="input-glass"
               />
             </label>
-            <button
-              type="button"
-              onClick={() => void handleFetchItems()}
-              disabled={loadingItems}
-              className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
-            >
-              {loadingItems ? 'Loading...' : 'Load items'}
-            </button>
+            {loadingItems ? (
+              <span className="pb-3 text-sm text-ink-muted dark:text-slate-400">
+                Loading items...
+              </span>
+            ) : null}
           </div>
+          {loadItemsError ? (
+            <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
+              <span className="text-ink-muted dark:text-slate-400">
+                Could not load work items
+              </span>
+              <button
+                type="button"
+                onClick={() => void handleFetchItems()}
+                className="btn-outline px-5"
+              >
+                Retry
+              </button>
+            </div>
+          ) : null}
         </div>
 
         {rows.length === 0 ? (
@@ -754,17 +778,7 @@ export function NewReportPage() {
               disabled={!canSaveDraft}
               className="btn-primary w-full sm:w-auto disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {saving ? 'Saving...' : 'Save draft'}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                void handleSaveReport(true);
-              }}
-              disabled={!canSaveDraft}
-              className="btn-outline w-full sm:w-auto disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              {saving ? 'Saving...' : 'Save and confirm'}
+              {saving ? 'Saving...' : 'Save report'}
             </button>
           </div>
         </div>
@@ -882,7 +896,7 @@ export function NewReportPage() {
                 }}
                 className="btn-primary w-full sm:w-auto"
               >
-                Save draft and leave
+                Save report and leave
               </button>
             </div>
           </div>

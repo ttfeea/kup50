@@ -200,7 +200,7 @@ describe('ReportsService multi-user isolation', () => {
     await service.getReportsWithWorkItems(userB);
 
     expect(prisma.report.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { userId: userB } }),
+      expect.objectContaining({ where: { userId: userB, deletedAt: null } }),
     );
   });
 
@@ -242,9 +242,12 @@ describe('ReportsService multi-user isolation', () => {
     ['delete', () => service.deleteDraft(userB, reportId)],
     ['generate email', () => service.getEmailDraft(userB, reportId)],
     ['export', () => service.exportXlsx(userB, reportId)],
-  ])('prevents user B from attempting to %s user A report', async (_, action) => {
-    await expect(action()).rejects.toBeInstanceOf(NotFoundException);
-  });
+  ])(
+    'prevents user B from attempting to %s user A report',
+    async (_, action) => {
+      await expect(action()).rejects.toBeInstanceOf(NotFoundException);
+    },
+  );
 
   it('does not perform writes or integration fetches after ownership fails', async () => {
     await expect(service.confirmReport(userB, reportId)).rejects.toThrow(
@@ -269,5 +272,4 @@ describe('ReportsService multi-user isolation', () => {
     expect(prisma.reportItem.createMany).not.toHaveBeenCalled();
     expect(integrations.fetchConfiguredItems).not.toHaveBeenCalled();
   });
-
 });

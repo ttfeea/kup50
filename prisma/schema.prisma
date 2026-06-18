@@ -93,12 +93,14 @@ model Report {
   userId      String       @map("user_id")
   createdAt   DateTime     @default(now()) @map("created_at")
   updatedAt   DateTime     @updatedAt @map("updated_at")
+  deletedAt   DateTime?    @map("deleted_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   reportItems ReportItem[]
 
   @@index([userId])
+  @@index([userId, deletedAt])
   @@map("reports")
 }
 

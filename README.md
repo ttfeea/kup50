@@ -29,6 +29,7 @@ The API runs on `http://localhost:3000` and Vite runs on
 Backend variables are documented in `.env.example`.
 
 - `DATABASE_URL`: PostgreSQL connection string
+- `DIRECT_URL`: direct PostgreSQL connection string used by Prisma migrations
 - `JWT_SECRET`: long random signing secret
 - `JWT_EXPIRES_IN`: JWT lifetime, currently `60d`
 - `FRONTEND_URL`: additional allowed frontend origin

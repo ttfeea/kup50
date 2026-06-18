@@ -1,5 +1,5 @@
 export const DEFAULT_EMAIL_SUBJECT =
-  'KUP50 - report for month: {{month}} - {{fullname}}';
+  'KUP50 - raport za miesiac: {{month}} - {{fullname}}';
 
 export const DEFAULT_EMAIL_BODY =
   'Dzien dobry,\n\nprzesylam raport KUP50 za okres {{periodStart}} - {{periodEnd}}.\n\nPozdrawiam,\n{{fullname}}';

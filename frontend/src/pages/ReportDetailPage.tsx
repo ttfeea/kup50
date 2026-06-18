@@ -6,6 +6,7 @@ import {
   deleteDraftReport,
   downloadReportXlsx,
   formatReportPeriod,
+  getReportStatusLabel,
   getEmailDraft,
   getReport,
 } from '../services/reports';
@@ -113,6 +114,7 @@ export function ReportDetailPage() {
   const [downloadingXlsx, setDownloadingXlsx] = useState(false);
   const [emailDraft, setEmailDraft] = useState<EmailDraftDto | null>(null);
   const [showEmailFallback, setShowEmailFallback] = useState(false);
+  const [showSentModal, setShowSentModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -197,7 +199,8 @@ export function ReportDetailPage() {
     try {
       const confirmed = await confirmReport(accessToken, report.id);
       setReport(confirmed);
-      showSnackbar('Report confirmed.', 'success');
+      setShowSentModal(false);
+      showSnackbar('Report marked as sent.', 'success');
     } catch (confirmError) {
       const message =
         confirmError instanceof Error
@@ -226,7 +229,7 @@ export function ReportDetailPage() {
       const message =
         deleteError instanceof Error
           ? deleteError.message
-          : 'Could not delete draft report.';
+          : 'Could not delete report.';
       setError(message);
       showSnackbar(message, 'error');
     } finally {
@@ -391,7 +394,7 @@ export function ReportDetailPage() {
   const deleteButtonLabel = deleting
     ? 'Deleting...'
     : report.status === 'DRAFT'
-      ? 'Delete draft'
+      ? 'Delete report'
       : 'Delete report';
   const mailtoDraft = emailDraft
     ? buildEmailDraftMailto(
@@ -421,13 +424,11 @@ export function ReportDetailPage() {
             {report.status === 'DRAFT' ? (
               <button
                 type="button"
-                onClick={() => {
-                  void handleConfirm();
-                }}
+                onClick={() => setShowSentModal(true)}
                 disabled={confirming || (report.workItems?.length ?? 0) === 0}
                 className="btn-outline w-full disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
               >
-                {confirming ? 'Confirming...' : 'Confirm report'}
+                {confirming ? 'Saving...' : 'Mark as sent'}
               </button>
             ) : null}
             <button
@@ -630,7 +631,7 @@ export function ReportDetailPage() {
                       : 'inline-flex rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-[#EAE9FC]'
                   }
                 >
-                  {report.status === 'SUBMITTED' ? 'Sent' : 'Draft'}
+                  {getReportStatusLabel(report.status)}
                 </span>
               </dd>
             </div>
@@ -731,6 +732,35 @@ export function ReportDetailPage() {
           )}
         </Panel>
       </div>
+
+      {showSentModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6">
+          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[rgba(19,5,43,0.92)] p-6 shadow-[0_40px_120px_rgba(73,0,164,0.30)] backdrop-blur-xl">
+            <h3 className="text-lg font-semibold text-white">
+              Mark this report as sent?
+            </h3>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setShowSentModal(false)}
+                className="btn-outline w-full sm:w-auto"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void handleConfirm();
+                }}
+                disabled={confirming}
+                className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
+              >
+                Mark as sent
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

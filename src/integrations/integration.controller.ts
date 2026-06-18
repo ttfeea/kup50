@@ -53,18 +53,6 @@ export class IntegrationController {
     return this.integrationService.checkConnection(user.id, provider);
   }
 
-  @Get(':provider/items')
-  fetchItems(
-    @CurrentUser() user: SafeUser,
-    @Param('provider') providerParam: string,
-    @Query() query: FetchIntegrationItemsDto,
-  ) {
-    const provider = this.integrationService.parseProvider(providerParam);
-    return this.integrationService.fetchItems(user.id, provider, {
-      limit: query.limit,
-    });
-  }
-
   @Get('preview')
   previewItems(
     @CurrentUser() user: SafeUser,
@@ -81,6 +69,18 @@ export class IntegrationController {
       limit: query.limit,
       since,
       until,
+    });
+  }
+
+  @Get(':provider/items')
+  fetchItems(
+    @CurrentUser() user: SafeUser,
+    @Param('provider') providerParam: string,
+    @Query() query: FetchIntegrationItemsDto,
+  ) {
+    const provider = this.integrationService.parseProvider(providerParam);
+    return this.integrationService.fetchItems(user.id, provider, {
+      limit: query.limit,
     });
   }
 }

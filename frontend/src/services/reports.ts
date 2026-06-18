@@ -13,6 +13,12 @@ export function listReports(authToken: string) {
   return apiRequest<ReportDto[]>('/reports', { token: authToken });
 }
 
+export function listDeletedReports(authToken: string) {
+  return apiRequest<ReportDto[]>('/reports/deleted/recent', {
+    token: authToken,
+  });
+}
+
 export function getReport(authToken: string, reportId: string) {
   return apiRequest<ReportDto>(`/reports/${reportId}`, { token: authToken });
 }
@@ -110,6 +116,17 @@ export function deleteDraftReport(authToken: string, reportId: string) {
   });
 }
 
+export function restoreReport(authToken: string, reportId: string) {
+  return apiRequest<ReportDto>(`/reports/${reportId}/restore`, {
+    method: 'POST',
+    token: authToken,
+  });
+}
+
+export function getReportStatusLabel(status: ReportDto['status']) {
+  return status === 'SUBMITTED' ? 'Sent' : 'Saved';
+}
+
 export function formatReportPeriod(
   report: Pick<ReportDto, 'periodStart' | 'periodEnd'>,
 ) {
@@ -122,5 +139,5 @@ export function formatReportPeriod(
     year: 'numeric',
   });
 
-  return `${formatter.format(start)} – ${formatter.format(end)}`;
+  return `${formatter.format(start)} - ${formatter.format(end)}`;
 }

@@ -1,14 +1,13 @@
-import { FilePlus2, Home, Settings, LogOut } from 'lucide-react';
+import { FilePlus2, History, Home, Settings, LogOut } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
 const navMain = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
+  { name: 'History', href: '/reports', icon: History },
   { name: 'New report', href: '/report/new', icon: FilePlus2, isNew: true },
 ];
 
-const navAccount = [
-  { name: 'Settings', href: '/settings', icon: Settings },
-];
+const navAccount = [{ name: 'Settings', href: '/settings', icon: Settings }];
 
 type SidebarProps = {
   open: boolean;
@@ -32,7 +31,12 @@ function NavItem({
   item,
   onClose,
 }: {
-  item: { name: string; href: string; icon: React.ElementType; isNew?: boolean };
+  item: {
+    name: string;
+    href: string;
+    icon: React.ElementType;
+    isNew?: boolean;
+  };
   onClose: () => void;
 }) {
   function spawnRipple(e: React.MouseEvent<HTMLAnchorElement>) {
@@ -49,8 +53,15 @@ function NavItem({
   return (
     <NavLink
       to={item.href}
-      onClick={(e) => { spawnRipple(e); onClose(); }}
-      style={{ textDecoration: 'none', position: 'relative', overflow: 'hidden' }}
+      onClick={(e) => {
+        spawnRipple(e);
+        onClose();
+      }}
+      style={{
+        textDecoration: 'none',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
       className={({ isActive }) => (isActive ? 'sb-link active' : 'sb-link')}
     >
       <item.icon size={16} className="sb-link-icon" aria-hidden="true" />
@@ -100,7 +111,8 @@ export function Sidebar({
             width: 220,
             height: 220,
             borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(136,33,232,0.09) 0%, transparent 70%)',
+            background:
+              'radial-gradient(circle, rgba(136,33,232,0.09) 0%, transparent 70%)',
             pointerEvents: 'none',
           }}
         />
@@ -118,28 +130,36 @@ export function Sidebar({
           <NavLink
             to="/dashboard"
             onClick={onClose}
-            style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 9, flex: 1 }}
+            style={{
+              textDecoration: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 9,
+              flex: 1,
+            }}
           >
-            <div
+            <img
+              src="/kup50_logo.svg"
+              alt=""
               style={{
-                width: 32,
-                height: 32,
-                borderRadius: 8,
-                background: '#8821e8',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#fff',
-                fontWeight: 700,
-                fontSize: 14,
+                width: 38,
+                height: 38,
+                borderRadius: 9,
+                objectFit: 'contain',
                 flexShrink: 0,
                 animation: 'kup50-pulse 3s ease-in-out infinite',
               }}
-            >
-              K
-            </div>
+            />
             <div>
-              <p style={{ fontSize: 13, fontWeight: 700, color: '#eae9fc', lineHeight: 1.2, letterSpacing: '0.03em' }}>
+              <p
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: '#eae9fc',
+                  lineHeight: 1.2,
+                  letterSpacing: '0.03em',
+                }}
+              >
                 KUP50
               </p>
               <p style={{ fontSize: 10, color: '#eae9fc', marginTop: 1 }}>
@@ -147,17 +167,26 @@ export function Sidebar({
               </p>
             </div>
           </NavLink>
-
-      </div>
+        </div>
 
         {/* Nav */}
-        <nav style={{ flex: 1, padding: '10px 8px', display: 'flex', flexDirection: 'column', gap: 1 }}>
+        <nav
+          style={{
+            flex: 1,
+            padding: '10px 8px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 1,
+          }}
+        >
           <span className="sb-group-label">Main</span>
           {navMain.map((item) => (
             <NavItem key={item.name} item={item} onClose={onClose} />
           ))}
 
-          <span className="sb-group-label" style={{ marginTop: 6 }}>Account</span>
+          <span className="sb-group-label" style={{ marginTop: 6 }}>
+            Account
+          </span>
           {navAccount.map((item) => (
             <NavItem key={item.name} item={item} onClose={onClose} />
           ))}
@@ -196,14 +225,24 @@ export function Sidebar({
               <div className="min-w-0 flex-1">
                 <p
                   className="topbar-name truncate text-sm font-medium"
-                  style={{ color: '#eae9fc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                  style={{
+                    color: '#eae9fc',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
                   title={displayName}
                 >
                   {displayName}
                 </p>
                 <p
                   className="topbar-email truncate text-[10px]"
-                  style={{ color: '#eae9fc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                  style={{
+                    color: '#eae9fc',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
                   title={displayEmail}
                 >
                   {displayEmail}

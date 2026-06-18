@@ -41,6 +41,8 @@ const FINAL_REPORT_HEADERS = [
   'Wskazanie miejsca przechowywania lub miejsca dostarczenia Pracodawcy Wyników Pracy Twórczej (...) / Repository links',
 ] as const;
 
+const DELETED_REPORT_RETENTION_DAYS = 30;
+
 @Injectable()
 export class ReportsService {
   constructor(
@@ -89,7 +91,7 @@ export class ReportsService {
 
   private async assertOwnedReport(userId: string, reportId: string) {
     const report = await this.prisma.report.findFirst({
-      where: { id: reportId, userId },
+      where: { id: reportId, userId, deletedAt: null },
       select: { id: true },
     });
 
@@ -154,7 +156,7 @@ export class ReportsService {
 
   async getReportWithWorkItems(userId: string, reportId: string) {
     const report = await this.prisma.report.findFirst({
-      where: { id: reportId, userId },
+      where: { id: reportId, userId, deletedAt: null },
       include: {
         reportItems: {
           orderBy: { createdAt: 'desc' },
@@ -176,7 +178,7 @@ export class ReportsService {
 
   async getReportsWithWorkItems(userId: string) {
     const reports = await this.prisma.report.findMany({
-      where: { userId },
+      where: { userId, deletedAt: null },
       orderBy: { createdAt: 'desc' },
       include: {
         reportItems: {
@@ -238,9 +240,55 @@ export class ReportsService {
       throw new NotFoundException('Report not found');
     }
 
-    await this.prisma.report.delete({ where: { id: reportId } });
+    await this.prisma.report.update({
+      where: { id: reportId },
+      data: { deletedAt: new Date() },
+    });
 
     return { deleted: true, reportId };
+  }
+
+  async getRecentlyDeletedReports(userId: string) {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - DELETED_REPORT_RETENTION_DAYS);
+
+    const reports = await this.prisma.report.findMany({
+      where: {
+        userId,
+        deletedAt: { gte: cutoff },
+      },
+      orderBy: { deletedAt: 'desc' },
+      include: {
+        reportItems: {
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+
+    return reports.map((report) => ({
+      ...report,
+      workItems: report.reportItems.map((item) =>
+        mapReportItemToWorkItem(item),
+      ),
+    }));
+  }
+
+  async restoreReport(userId: string, reportId: string) {
+    const report = await this.prisma.report.findFirst({
+      where: { id: reportId, userId, deletedAt: { not: null } },
+      select: { id: true },
+    });
+
+    if (!report) {
+      throw new NotFoundException('Report not found');
+    }
+
+    await this.prisma.report.update({
+      where: { id: reportId },
+      data: { deletedAt: null },
+    });
+
+    return this.getReportWithWorkItems(userId, reportId);
   }
 
   async confirmReport(userId: string, reportId: string) {
@@ -361,7 +409,7 @@ export class ReportsService {
     reportId: string,
   ): Promise<FinalReportDto> {
     const report = await this.prisma.report.findFirst({
-      where: { id: reportId, userId },
+      where: { id: reportId, userId, deletedAt: null },
       include: {
         user: true,
         reportItems: {

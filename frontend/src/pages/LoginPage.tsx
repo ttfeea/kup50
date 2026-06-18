@@ -4,9 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 const RECTS = [
-  { top: '7%',    left: '4%',   size: 80, rotate: 15,  delay: '0s'   },
-  { top: '18%',   right: '7%',  size: 50, rotate: 30,  delay: '0.7s' },
-  { bottom: '10%', left: '6%', size: 60,  rotate: -20, delay: '1.4s' },
+  { top: '7%', left: '4%', size: 80, rotate: 15, delay: '0s' },
+  { top: '18%', right: '7%', size: 50, rotate: 30, delay: '0.7s' },
+  { bottom: '10%', left: '6%', size: 60, rotate: -20, delay: '1.4s' },
 ];
 
 export function LoginPage() {
@@ -15,7 +15,7 @@ export function LoginPage() {
   const [email, setEmail] = useState(
     () => localStorage.getItem('lastEmail') ?? '',
   );
-  const [error, setError]     = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [focused, setFocused] = useState(false);
   const [visible, setVisible] = useState(false);
@@ -37,7 +37,9 @@ export function LoginPage() {
     } else {
       setErrorVisible(false);
     }
-    return () => { if (errorTimer.current) clearTimeout(errorTimer.current); };
+    return () => {
+      if (errorTimer.current) clearTimeout(errorTimer.current);
+    };
   }, [error]);
 
   const validateEmail = (value: string): string | null => {
@@ -57,14 +59,19 @@ export function LoginPage() {
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const validationError = validateEmail(email);
-    if (validationError) { setError(validationError); return; }
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
     setError(null);
     setLoading(true);
     try {
       await login(email.trim());
       navigate('/dashboard');
     } catch (loginError) {
-      setError(loginError instanceof Error ? loginError.message : 'Sign in failed');
+      setError(
+        loginError instanceof Error ? loginError.message : 'Sign in failed',
+      );
     } finally {
       setLoading(false);
     }
@@ -179,44 +186,68 @@ export function LoginPage() {
         }
       `}</style>
 
-      <main style={{
-        position: 'fixed',
-        inset: 0,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'linear-gradient(135deg, #0d0118 0%, #1a0533 45%, #2a0b4e 100%)',
-        overflow: 'hidden',
-        fontFamily: "'Syne', ui-sans-serif, system-ui, sans-serif",
-      }}>
-
+      <main
+        style={{
+          position: 'fixed',
+          inset: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background:
+            'linear-gradient(135deg, #0d0118 0%, #1a0533 45%, #2a0b4e 100%)',
+          overflow: 'hidden',
+          fontFamily: "'Syne', ui-sans-serif, system-ui, sans-serif",
+        }}
+      >
         {/* ambient orbs */}
-        <div style={{
-          position: 'absolute', width: 380, height: 380, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(136,33,232,0.14) 0%, transparent 70%)',
-          top: -80, left: -80, pointerEvents: 'none',
-          animation: 'orb-drift 12s ease-in-out infinite',
-        }} />
-        <div style={{
-          position: 'absolute', width: 300, height: 300, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(120,0,220,0.12) 0%, transparent 70%)',
-          bottom: -60, right: -60, pointerEvents: 'none',
-          animation: 'orb-drift 16s ease-in-out infinite reverse',
-        }} />
+        <div
+          style={{
+            position: 'absolute',
+            width: 380,
+            height: 380,
+            borderRadius: '50%',
+            background:
+              'radial-gradient(circle, rgba(136,33,232,0.14) 0%, transparent 70%)',
+            top: -80,
+            left: -80,
+            pointerEvents: 'none',
+            animation: 'orb-drift 12s ease-in-out infinite',
+          }}
+        />
+        <div
+          style={{
+            position: 'absolute',
+            width: 300,
+            height: 300,
+            borderRadius: '50%',
+            background:
+              'radial-gradient(circle, rgba(120,0,220,0.12) 0%, transparent 70%)',
+            bottom: -60,
+            right: -60,
+            pointerEvents: 'none',
+            animation: 'orb-drift 16s ease-in-out infinite reverse',
+          }}
+        />
 
         {/* floating rectangles */}
         {RECTS.map((r, i) => (
-          <div key={i} style={{
-            position: 'absolute',
-            top: (r as any).top, left: (r as any).left,
-            right: (r as any).right, bottom: (r as any).bottom,
-            width: r.size, height: r.size,
-            border: '1.5px solid rgba(136,33,232,0.20)',
-            borderRadius: 10,
-            animation: `float ${6 + i * 2}s ease-in-out infinite ${r.delay}`,
-            pointerEvents: 'none',
-            ['--r' as string]: `${r.rotate}deg`,
-          }} />
+          <div
+            key={i}
+            style={{
+              position: 'absolute',
+              top: (r as any).top,
+              left: (r as any).left,
+              right: (r as any).right,
+              bottom: (r as any).bottom,
+              width: r.size,
+              height: r.size,
+              border: '1.5px solid rgba(136,33,232,0.20)',
+              borderRadius: 10,
+              animation: `float ${6 + i * 2}s ease-in-out infinite ${r.delay}`,
+              pointerEvents: 'none',
+              ['--r' as string]: `${r.rotate}deg`,
+            }}
+          />
         ))}
 
         {/* card */}
@@ -236,34 +267,77 @@ export function LoginPage() {
           }}
         >
           {/* inner shimmer */}
-          <div style={{
-            position: 'absolute', top: 0, left: 0, right: 0, height: '40%',
-            background: 'linear-gradient(180deg, rgba(255,255,255,0.04) 0%, transparent 100%)',
-            borderRadius: '22px 22px 0 0', pointerEvents: 'none',
-          }} />
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: '40%',
+              background:
+                'linear-gradient(180deg, rgba(255,255,255,0.04) 0%, transparent 100%)',
+              borderRadius: '22px 22px 0 0',
+              pointerEvents: 'none',
+            }}
+          />
 
           {/* brand */}
-          <div style={{
-            position: 'absolute', top: 20, left: 26, zIndex: 10,
-            fontFamily: "'Syne', sans-serif", fontWeight: 800,
-            fontSize: 18, color: '#ffffff', letterSpacing: '0.04em',
-          }}>
+          <div
+            style={{
+              position: 'absolute',
+              top: 20,
+              left: 26,
+              zIndex: 10,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 9,
+              fontFamily: "'Syne', sans-serif",
+              fontWeight: 800,
+              fontSize: 18,
+              color: '#ffffff',
+              letterSpacing: '0.04em',
+            }}
+          >
+            <img
+              src="/kup50_logo.svg"
+              alt=""
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 8,
+                objectFit: 'contain',
+              }}
+            />
             KUP50
           </div>
 
           {/* heading */}
-          <p style={{ color: '#ffffff', fontSize: 26, fontWeight: 700, marginBottom: 8, fontFamily: "'Syne', sans-serif" }}>
+          <p
+            style={{
+              color: '#ffffff',
+              fontSize: 26,
+              fontWeight: 700,
+              marginBottom: 8,
+              fontFamily: "'Syne', sans-serif",
+            }}
+          >
             Welcome
           </p>
-
 
           {/* form */}
           <form onSubmit={handleLogin} noValidate>
             <label>
-              <span style={{
-                display: 'block', color: 'rgba(255,255,255,0.55)', fontSize: 12,
-                fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6,
-              }}>
+              <span
+                style={{
+                  display: 'block',
+                  color: 'rgba(255,255,255,0.55)',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  marginBottom: 6,
+                }}
+              >
                 Email
               </span>
               <input
@@ -288,7 +362,6 @@ export function LoginPage() {
               <ArrowRight size={16} aria-hidden="true" />
             </button>
           </form>
-
         </section>
       </main>
     </>

@@ -10,6 +10,7 @@ export type IntegrationStatusDto = {
   message: string;
   baseUrl?: string | null;
   accountEmail?: string | null;
+  connectionCheckedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
   tokenPreview?: string;

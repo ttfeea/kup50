@@ -30,6 +30,7 @@ type IntegrationStatusDto = {
   message: string;
   baseUrl?: string | null;
   accountEmail?: string | null;
+  connectionCheckedAt?: Date | null;
   createdAt?: Date;
   updatedAt?: Date;
   tokenPreview?: string;
@@ -322,9 +323,7 @@ export class IntegrationService {
       excludedUrls,
     );
     const repositoryLinks =
-      jiraRemoteLinks.length > 0
-        ? jiraRemoteLinks
-        : fallbackLinks;
+      jiraRemoteLinks.length > 0 ? jiraRemoteLinks : fallbackLinks;
     const repositorySummaryLinks =
       jiraRemoteLinks.length === 0 && repositoryLinks.length > 4
         ? this.buildProviderSearchLinks(matches, jiraKey)
@@ -560,6 +559,7 @@ export class IntegrationService {
       message: status.message,
       baseUrl: token.baseUrl,
       accountEmail: token.accountEmail,
+      connectionCheckedAt: token.connectionCheckedAt,
       createdAt: token.createdAt,
       updatedAt: token.updatedAt,
       tokenPreview: this.getTokenPreview(token.token),

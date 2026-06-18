@@ -27,6 +27,7 @@ export type ReportDto = {
   userId: string;
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string | null;
   reportItems: StoredReportItemDto[];
   workItems: WorkItem[];
 };
