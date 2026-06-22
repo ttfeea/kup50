@@ -325,6 +325,7 @@ export class ReportsService {
     return {
       receiverEmail:
         user.reportReceiverEmail?.trim() || user.managerEmail?.trim() || '',
+      ccEmail: user.reportCcEmail?.trim() || '',
       subject: this.renderTemplate(
         user.reportEmailSubjectTemplate?.trim() || DEFAULT_EMAIL_SUBJECT,
         values,

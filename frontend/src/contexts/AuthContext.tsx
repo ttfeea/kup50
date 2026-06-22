@@ -25,6 +25,7 @@ export type AuthUser = {
   managerName: string;
   managerEmail: string;
   reportReceiverEmail: string;
+  reportCcEmail: string;
   reportEmailSubjectTemplate: string;
   reportEmailBodyTemplate: string;
 };
@@ -54,6 +55,7 @@ function mapUser(user: UserDto): AuthUser {
     managerEmail: user.managerEmail?.trim() || '',
     reportReceiverEmail:
       user.reportReceiverEmail?.trim() || user.managerEmail?.trim() || '',
+    reportCcEmail: user.reportCcEmail?.trim() || '',
     reportEmailSubjectTemplate:
       user.reportEmailSubjectTemplate?.trim() || DEFAULT_EMAIL_SUBJECT,
     reportEmailBodyTemplate:
@@ -91,6 +93,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         managerEmail: parsed.managerEmail || '',
         reportReceiverEmail:
           parsed.reportReceiverEmail || parsed.managerEmail || '',
+        reportCcEmail: parsed.reportCcEmail || '',
         reportEmailSubjectTemplate:
           parsed.reportEmailSubjectTemplate || DEFAULT_EMAIL_SUBJECT,
         reportEmailBodyTemplate:

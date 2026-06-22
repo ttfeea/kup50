@@ -40,7 +40,7 @@ const providerLabels: Record<IntegrationProvider, string> = {
 function getCurrentMonthWindow() {
   const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  const label = new Intl.DateTimeFormat(undefined, {
+  const label = new Intl.DateTimeFormat('en-GB', {
     month: 'long',
     year: 'numeric',
   }).format(now);
@@ -70,7 +70,7 @@ function sortReportsByUpdated(reports: ReportDto[]) {
   );
 }
 
-function getDeadlineLabel(now: Date) {
+function getDeadlineDetails(now: Date) {
   const deadline = new Date(
     now.getFullYear(),
     now.getMonth(),
@@ -84,7 +84,13 @@ function getDeadlineLabel(now: Date) {
     Math.ceil((deadline.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)),
   );
 
-  return days === 1 ? '1 day remaining' : `${days} days remaining`;
+  return {
+    date: new Intl.DateTimeFormat('en-GB', {
+      day: 'numeric',
+      month: 'long',
+    }).format(deadline),
+    remaining: days === 1 ? '1 day remaining' : `${days} days remaining`,
+  };
 }
 
 function formatShortDateTime(value?: string | null) {
@@ -92,7 +98,7 @@ function formatShortDateTime(value?: string | null) {
     return 'Not checked';
   }
 
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat('en-GB', {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
@@ -249,6 +255,7 @@ export function DashboardPage() {
   const currentMonthStatus = currentMonthReport
     ? getReportStatusLabel(currentMonthReport.status)
     : 'Not Created';
+  const deadline = getDeadlineDetails(monthWindow.now);
 
   return (
     <div className="dashboard-page page-shell page-view space-y-4 bg-[#0a0115]">
@@ -309,8 +316,9 @@ export function DashboardPage() {
               <p className="text-xs text-ink-muted dark:text-slate-400">
                 Deadline
               </p>
-              <p className="mt-1 font-medium">
-                {getDeadlineLabel(monthWindow.now)}
+              <p className="mt-1 font-medium">{deadline.date}</p>
+              <p className="mt-0.5 text-xs text-ink-muted dark:text-slate-400">
+                {deadline.remaining}
               </p>
             </div>
             <div className="rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2">

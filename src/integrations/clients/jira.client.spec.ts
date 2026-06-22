@@ -45,20 +45,23 @@ describe('JiraClient', () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       'https://company.atlassian.net/rest/api/3/myself',
-      {
+      expect.objectContaining({
         headers: {
           Authorization: `Basic ${Buffer.from(
             'employee@example.com:api-token',
           ).toString('base64')}`,
           Accept: 'application/json',
         },
-      },
+        redirect: 'manual',
+      }),
     );
   });
 
   it('returns a clear authentication error for an invalid token', async () => {
-    fetchMock.mockResolvedValue(
-      new Response('<html>Unauthorized</html>', { status: 401 }),
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(
+        new Response('<html>Unauthorized</html>', { status: 401 }),
+      ),
     );
 
     await expect(
@@ -67,7 +70,188 @@ describe('JiraClient', () => {
         baseUrl: 'https://company.atlassian.net',
         accountEmail: 'employee@example.com',
       }),
-    ).rejects.toThrow('Jira authentication failed');
+    ).rejects.toThrow('Jira is reachable, but authentication failed');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('falls back to Jira Server/Data Center API v2', async () => {
+    fetchMock
+      .mockResolvedValueOnce(new Response('{}', { status: 404 }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ name: 'employee' }), { status: 200 }),
+      );
+
+    await client.validateToken({
+      token: 'server-token',
+      baseUrl: 'https://jira.example.com/jira/',
+      accountEmail: 'employee@example.com',
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      'https://jira.example.com/jira/rest/api/3/myself',
+      expect.anything(),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'https://jira.example.com/jira/rest/api/2/myself',
+      expect.anything(),
+    );
+  });
+
+  it('uses Jira API v2 for Server/Data Center item fetching', async () => {
+    fetchMock
+      .mockResolvedValueOnce(new Response('{}', { status: 404 }))
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ issues: [] }), { status: 200 }),
+      );
+
+    await client.fetchRecentItems({
+      token: 'server-token',
+      baseUrl: 'https://jira.example.com',
+      accountEmail: 'employee@example.com',
+      limit: 10,
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      'https://jira.example.com/rest/api/2/search',
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  it('reports an SSO redirect instead of a generic connection failure', async () => {
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(
+        new Response('', {
+          status: 302,
+          headers: { location: 'https://sso.example.com/login' },
+        }),
+      ),
+    );
+
+    await expect(
+      client.validateToken({
+        token: 'api-token',
+        baseUrl: 'https://jira.example.com',
+        accountEmail: 'employee@example.com',
+      }),
+    ).rejects.toThrow('login/SSO redirect');
+  });
+
+  it('reports a successful HTML login page as SSO', async () => {
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(
+        new Response('<html><title>Sign in with SSO</title></html>', {
+          status: 200,
+        }),
+      ),
+    );
+
+    await expect(
+      client.validateToken({
+        token: 'api-token',
+        baseUrl: 'https://jira.example.com',
+        accountEmail: 'employee@example.com',
+      }),
+    ).rejects.toThrow('login/SSO page');
+  });
+
+  it('reports a non-JSON API response clearly', async () => {
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(new Response('plain text', { status: 200 })),
+    );
+
+    await expect(
+      client.validateToken({
+        token: 'api-token',
+        baseUrl: 'https://jira.example.com',
+        accountEmail: 'employee@example.com',
+      }),
+    ).rejects.toThrow('API returned a non-JSON response');
+  });
+
+  it('reports when neither Jira API endpoint exists', async () => {
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(new Response('{}', { status: 404 })),
+    );
+
+    await expect(
+      client.validateToken({
+        token: 'api-token',
+        baseUrl: 'https://jira.example.com',
+        accountEmail: 'employee@example.com',
+      }),
+    ).rejects.toThrow(
+      'Check whether this is Jira Cloud or Jira Server/Data Center',
+    );
+  });
+
+  it('distinguishes DNS, timeout, TLS, and other network failures', async () => {
+    const cases = [
+      {
+        error: Object.assign(new TypeError('fetch failed'), {
+          cause: { code: 'ENOTFOUND' },
+        }),
+        message: 'could not resolve this Jira host',
+      },
+      {
+        error: Object.assign(new Error('timed out'), { name: 'TimeoutError' }),
+        message: 'Jira request timed out',
+      },
+      {
+        error: Object.assign(new TypeError('certificate expired'), {
+          cause: { code: 'CERT_HAS_EXPIRED' },
+        }),
+        message: 'TLS/SSL validation failed',
+      },
+      {
+        error: new TypeError('fetch failed'),
+        message: 'cannot reach this Jira URL',
+      },
+    ];
+
+    for (const testCase of cases) {
+      fetchMock.mockRejectedValue(testCase.error);
+      await expect(
+        client.validateToken({
+          token: 'api-token',
+          baseUrl: 'https://jira.example.com',
+          accountEmail: 'employee@example.com',
+        }),
+      ).rejects.toThrow(testCase.message);
+      fetchMock.mockReset();
+    }
+  });
+
+  it('logs only sanitized Jira diagnostics', async () => {
+    const warn = jest.fn();
+    (
+      client as unknown as { logger: { warn: (message: string) => void } }
+    ).logger.warn = warn;
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(new Response('{}', { status: 403 })),
+    );
+
+    await expect(
+      client.validateToken({
+        token: 'super-secret-token',
+        baseUrl: 'https://jira.example.com/private/path?secret=value',
+        accountEmail: 'employee@example.com',
+      }),
+    ).rejects.toThrow('authentication failed');
+
+    expect(warn).toHaveBeenCalledWith(
+      'Jira validation failed host=jira.example.com status=403 redirect=no apiVersion=3 category=authentication',
+    );
+    expect(warn).toHaveBeenCalledWith(
+      'Jira validation failed host=jira.example.com status=403 redirect=no apiVersion=2 category=authentication',
+    );
+    expect(warn.mock.calls.flat().join(' ')).not.toContain(
+      'super-secret-token',
+    );
+    expect(warn.mock.calls.flat().join(' ')).not.toContain('/private/path');
   });
 
   it('uses quoted JQL dates and maps Jira issues to work items', async () => {

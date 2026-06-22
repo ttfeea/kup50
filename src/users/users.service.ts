@@ -15,6 +15,7 @@ export interface UpdateUserData {
   managerName?: string | null;
   managerEmail?: string | null;
   reportReceiverEmail?: string | null;
+  reportCcEmail?: string | null;
   reportEmailSubjectTemplate?: string | null;
   reportEmailBodyTemplate?: string | null;
 }
@@ -43,6 +44,7 @@ export class UsersService {
         managerName: data.managerName,
         managerEmail: data.managerEmail,
         reportReceiverEmail: data.reportReceiverEmail,
+        reportCcEmail: data.reportCcEmail,
         reportEmailSubjectTemplate: data.reportEmailSubjectTemplate,
         reportEmailBodyTemplate: data.reportEmailBodyTemplate,
       },

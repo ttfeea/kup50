@@ -12,6 +12,7 @@ export type UserDto = {
   managerName: string | null;
   managerEmail: string | null;
   reportReceiverEmail: string | null;
+  reportCcEmail: string | null;
   reportEmailSubjectTemplate: string | null;
   reportEmailBodyTemplate: string | null;
 };
@@ -29,6 +30,7 @@ export type UpdateUserDto = {
   managerName?: string;
   managerEmail?: string;
   reportReceiverEmail?: string;
+  reportCcEmail?: string;
   reportEmailSubjectTemplate?: string;
   reportEmailBodyTemplate?: string;
 };

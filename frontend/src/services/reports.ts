@@ -133,7 +133,7 @@ export function formatReportPeriod(
   const start = new Date(report.periodStart);
   const end = new Date(report.periodEnd);
 
-  const formatter = new Intl.DateTimeFormat(undefined, {
+  const formatter = new Intl.DateTimeFormat('en-GB', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',

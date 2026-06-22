@@ -46,6 +46,7 @@ model User {
   managerName                String?
   managerEmail               String?  @map("manager_email")
   reportReceiverEmail        String?  @map("report_receiver_email")
+  reportCcEmail              String?  @map("report_cc_email")
   reportEmailSubjectTemplate String?  @map("report_email_subject_template")
   reportEmailBodyTemplate    String?  @map("report_email_body_template")
   employeeId                 String?  @map("employee_id")

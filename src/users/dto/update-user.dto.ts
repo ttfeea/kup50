@@ -1,4 +1,4 @@
-import { IsOptional, IsString } from 'class-validator';
+import { IsEmail, IsOptional, IsString, ValidateIf } from 'class-validator';
 
 export class UpdateUserDto {
   @IsOptional()
@@ -28,6 +28,10 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   reportReceiverEmail?: string;
+
+  @ValidateIf((_, value) => value !== undefined && value !== '')
+  @IsEmail()
+  reportCcEmail?: string;
 
   @IsOptional()
   @IsString()

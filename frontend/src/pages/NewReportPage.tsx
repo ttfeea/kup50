@@ -56,7 +56,7 @@ function toPeriodEnd(date: string) {
 }
 
 function formatPeriodRange(start: string, end: string) {
-  const formatter = new Intl.DateTimeFormat(undefined, {
+  const formatter = new Intl.DateTimeFormat('en-GB', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',

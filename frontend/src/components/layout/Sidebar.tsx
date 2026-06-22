@@ -139,7 +139,7 @@ export function Sidebar({
             }}
           >
             <img
-              src="/kup50_logo.svg"
+              src="/kup50_logo_v3.svg"
               alt=""
               style={{
                 width: 38,

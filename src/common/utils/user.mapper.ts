@@ -12,6 +12,7 @@ export type SafeUser = Pick<
   | 'managerName'
   | 'managerEmail'
   | 'reportReceiverEmail'
+  | 'reportCcEmail'
   | 'reportEmailSubjectTemplate'
   | 'reportEmailBodyTemplate'
   | 'employeeId'
@@ -29,6 +30,7 @@ export function toSafeUser(user: User): SafeUser {
     managerName: user.managerName,
     managerEmail: user.managerEmail,
     reportReceiverEmail: user.reportReceiverEmail,
+    reportCcEmail: user.reportCcEmail,
     reportEmailSubjectTemplate: user.reportEmailSubjectTemplate,
     reportEmailBodyTemplate: user.reportEmailBodyTemplate,
     employeeId: user.employeeId,

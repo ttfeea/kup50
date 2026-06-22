@@ -12,6 +12,7 @@ describe('UsersService', () => {
 
     await service.updateById('user-1', {
       reportReceiverEmail: 'reports@example.com',
+      reportCcEmail: 'cc@example.com',
       reportEmailSubjectTemplate: 'Subject {{month}}',
       reportEmailBodyTemplate: 'Body {{fullname}}',
     });
@@ -21,6 +22,7 @@ describe('UsersService', () => {
       data: expect.objectContaining({
         managerEmail: undefined,
         reportReceiverEmail: 'reports@example.com',
+        reportCcEmail: 'cc@example.com',
         reportEmailSubjectTemplate: 'Subject {{month}}',
         reportEmailBodyTemplate: 'Body {{fullname}}',
       }),

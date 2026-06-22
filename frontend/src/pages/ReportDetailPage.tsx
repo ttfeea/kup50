@@ -311,6 +311,7 @@ export function ReportDetailPage() {
       isTooLong,
     } = buildEmailDraftMailto(
       emailDraft.receiverEmail,
+      emailDraft.ccEmail,
       emailDraft.subject,
       emailDraft.body,
     );
@@ -399,6 +400,7 @@ export function ReportDetailPage() {
   const mailtoDraft = emailDraft
     ? buildEmailDraftMailto(
         emailDraft.receiverEmail,
+        emailDraft.ccEmail,
         emailDraft.subject,
         emailDraft.body,
       )
@@ -485,6 +487,20 @@ export function ReportDetailPage() {
                       );
                     }}
                   />
+                </dd>
+              </div>
+              <div>
+                <dt className="text-ink-muted dark:text-slate-400">CC</dt>
+                <dd className="mt-1 flex flex-wrap items-center gap-2">
+                  <span>{emailDraft.ccEmail || '-'}</span>
+                  {emailDraft.ccEmail ? (
+                    <CopyButton
+                      label="Copy CC recipient"
+                      onClick={() => {
+                        void copyEmailField('CC recipient', emailDraft.ccEmail);
+                      }}
+                    />
+                  ) : null}
                 </dd>
               </div>
               <div>

@@ -51,6 +51,7 @@ export type CreateManualWorkItemDto = {
 
 export type EmailDraftDto = {
   receiverEmail: string;
+  ccEmail: string;
   subject: string;
   body: string;
   tablePreviewHtml: string;

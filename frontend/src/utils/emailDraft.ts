@@ -24,27 +24,33 @@ export function normalizeEmailAddress(input: string): string {
 
 export function buildMailtoUrl(
   receiver: string,
+  cc: string,
   subject: string,
   body: string,
 ): string {
-  return receiver
-    ? `mailto:${receiver}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
-    : '';
+  if (!receiver) {
+    return '';
+  }
+
+  const ccParameter = cc ? `cc=${encodeURIComponent(cc)}&` : '';
+  return `mailto:${receiver}?${ccParameter}subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
 export function buildEmailDraftMailto(
   receiverInput: string,
+  ccInput: string,
   subjectInput: string,
   bodyInput: string,
 ) {
   const receiver = normalizeEmailAddress(receiverInput);
+  const cc = normalizeEmailAddress(ccInput);
   const subject = subjectInput ?? '';
   const body = (bodyInput ?? '').replace(/\r\n?/g, '\n');
-  const fullMailtoUrl = buildMailtoUrl(receiver, subject, body);
+  const fullMailtoUrl = buildMailtoUrl(receiver, cc, subject, body);
   const isTooLong = fullMailtoUrl.length > MAILTO_LENGTH_LIMIT;
   const mailtoUrl = isTooLong
-    ? buildMailtoUrl(receiver, subject, LONG_MAILTO_BODY)
+    ? buildMailtoUrl(receiver, cc, subject, LONG_MAILTO_BODY)
     : fullMailtoUrl;
 
-  return { receiver, subject, body, mailtoUrl, isTooLong };
+  return { receiver, cc, subject, body, mailtoUrl, isTooLong };
 }

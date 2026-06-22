@@ -22,6 +22,7 @@ describe('ReportsService email and XLSX output', () => {
     managerName: 'Anna Manager',
     managerEmail: 'manager@example.com',
     reportReceiverEmail: null,
+    reportCcEmail: null,
     reportEmailSubjectTemplate: null,
     reportEmailBodyTemplate: null,
   };
@@ -74,6 +75,7 @@ describe('ReportsService email and XLSX output', () => {
     const draft = await service.getEmailDraft('user-1', 'report-1');
 
     expect(draft.receiverEmail).toBe('manager@example.com');
+    expect(draft.ccEmail).toBe('');
     expect(draft.subject).toBe('KUP50 — raport za miesiąc: maj — Jan Kowalski');
     expect(draft.body).toContain(
       'przesyłam raport KUP50 za okres 01.05.2026 – 31.05.2026.',
@@ -89,6 +91,17 @@ describe('ReportsService email and XLSX output', () => {
     expect(draft.tablePreviewHtml).toContain(
       'href="https://github.com/example/app/pull/1"',
     );
+  });
+
+  it('includes the configured CC recipient in email draft data', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      ...user,
+      reportCcEmail: 'cc@example.com',
+    });
+
+    const draft = await service.getEmailDraft('user-1', 'report-1');
+
+    expect(draft.ccEmail).toBe('cc@example.com');
   });
 
   it('exports all eight columns with title, stage, and repository hyperlinks', async () => {

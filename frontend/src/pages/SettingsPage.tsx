@@ -30,6 +30,7 @@ export function SettingsPage() {
   const [savingEmail, setSavingEmail] = useState(false);
   const [integrationDirty, setIntegrationDirty] = useState(false);
   const [receiverEmail, setReceiverEmail] = useState('');
+  const [ccEmail, setCcEmail] = useState('');
   const [emailSubjectTemplate, setEmailSubjectTemplate] = useState(
     DEFAULT_EMAIL_SUBJECT,
   );
@@ -50,6 +51,7 @@ export function SettingsPage() {
     setDepartment(user.department);
     setManagerName(user.managerName);
     setReceiverEmail(user.reportReceiverEmail || user.managerEmail);
+    setCcEmail(user.reportCcEmail);
     setEmailSubjectTemplate(
       user.reportEmailSubjectTemplate || DEFAULT_EMAIL_SUBJECT,
     );
@@ -71,11 +73,12 @@ export function SettingsPage() {
     () =>
       Boolean(user) &&
       (receiverEmail !== (user?.reportReceiverEmail || user?.managerEmail) ||
+        ccEmail !== user?.reportCcEmail ||
         emailSubjectTemplate !==
           (user?.reportEmailSubjectTemplate || DEFAULT_EMAIL_SUBJECT) ||
         emailBodyTemplate !==
           (user?.reportEmailBodyTemplate || DEFAULT_EMAIL_BODY)),
-    [emailBodyTemplate, emailSubjectTemplate, receiverEmail, user],
+    [ccEmail, emailBodyTemplate, emailSubjectTemplate, receiverEmail, user],
   );
 
   const dirty = profileDirty || emailDirty || integrationDirty;
@@ -152,6 +155,7 @@ export function SettingsPage() {
     try {
       await updateProfile({
         reportReceiverEmail: receiverEmail.trim(),
+        reportCcEmail: ccEmail.trim(),
         reportEmailSubjectTemplate:
           emailSubjectTemplate.trim() || DEFAULT_EMAIL_SUBJECT,
         reportEmailBodyTemplate: emailBodyTemplate.trim() || DEFAULT_EMAIL_BODY,
@@ -304,6 +308,18 @@ export function SettingsPage() {
                   value={receiverEmail}
                   onChange={(event) => setReceiverEmail(event.target.value)}
                   placeholder="manager@example.com"
+                  className="input-glass mt-1 w-full"
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm text-ink-muted dark:text-slate-400">
+                  CC email
+                </span>
+                <input
+                  type="email"
+                  value={ccEmail}
+                  onChange={(event) => setCcEmail(event.target.value)}
+                  placeholder="cc@example.com"
                   className="input-glass mt-1 w-full"
                 />
               </label>
